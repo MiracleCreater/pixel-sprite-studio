@@ -42,7 +42,7 @@
 ### 路线 A · 一键安装（推荐）
 
 ```bash
-git clone https://github.com/<作者>/pixel-sprite-studio.git
+git clone https://github.com/MiracleCreater/pixel-sprite-studio.git
 cd pixel-sprite-studio
 ```
 
@@ -126,8 +126,11 @@ python MyPixelTool/pipeline.py --name 小骑士 --image D:\角色.png --actions 
 
 | 资源 | 大小 | 链接 |
 |---|---|---|
-| 整合包（工具+ComfyUI+节点） | ~20 MB | 待填 |
-| comfyui内置环境包（Python 3.11 + PyTorch cu130） | ~5.2 GB | 待填 |
+| 整合包（工具+ComfyUI+节点） | ~20 MB | [夸克网盘](https://pan.quark.cn/s/1204f8f53360) |
+| comfyui内置环境包（Python 3.11 + PyTorch cu130） | ~5.2 GB | [夸克网盘](https://pan.quark.cn/s/1204f8f53360) |
+
+网盘链接：<https://pan.quark.cn/s/1204f8f53360>
+（若已过期，请到 [Issues](https://github.com/MiracleCreater/pixel-sprite-studio/issues) 反馈；模型也可以完全用 `download_models.py` 自动下载，不依赖网盘）
 
 解压后目录结构：`pixel-sprite-studio\{MyPixelTool, ComfyUI, comfyui内置环境包, models}`
 
