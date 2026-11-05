@@ -120,19 +120,37 @@ python MyPixelTool/pipeline.py --name 小骑士 --image D:\角色.png --actions 
 # 参数：--duration 秒数  --pixel 32~128  --steps 4~8  --video-size 640x352  --keep-video
 ```
 
-## 离线包（网盘备用）
+## 离线包（网盘备用 · 不装 Python 也能跑）
 
-> 模型优先用脚本下载（可校验、可续传）。网盘包给下载不动 HF 的人备用。
+> GitHub 路线需要本机有 Python 3.10+。如果连 Python 都不想装、或者 `pip install torch`
+> 一直失败，走这条路线：**解压即用，整个工具自带解释器**。
 
-| 资源 | 大小 | 链接 |
+**下载**：夸克网盘 <https://pan.quark.cn/s/1204f8f53360>（目录 `pixel-sprite-studio/`）
+
+| 文件 | 大小 | 说明 |
 |---|---|---|
-| 整合包（工具+ComfyUI+节点） | ~20 MB | [夸克网盘](https://pan.quark.cn/s/1204f8f53360) |
-| comfyui内置环境包（Python 3.11 + PyTorch cu130） | ~5.2 GB | [夸克网盘](https://pan.quark.cn/s/1204f8f53360) |
+| `像素动画工坊-整合包.zip` | ~20 MB | 工具本体 + ComfyUI 0.42.0 + 内存节点（不含模型） |
+| `comfyui内置环境包.zip` | ~5 GB | 便携 Python 3.11 + PyTorch 2.10 cu130，已在目标机器验证可跑 |
 
-网盘链接：<https://pan.quark.cn/s/1204f8f53360>
-（若已过期，请到 [Issues](https://github.com/MiracleCreater/pixel-sprite-studio/issues) 反馈；模型也可以完全用 `download_models.py` 自动下载，不依赖网盘）
+**用法**（两个 zip 都下下来，解压到同一个目录）：
 
-解压后目录结构：`pixel-sprite-studio\{MyPixelTool, ComfyUI, comfyui内置环境包, models}`
+```
+任意文件夹\
+├── MyPixelTool\            ← 来自「整合包」
+├── ComfyUI\                ← 来自「整合包」
+└── comfyui内置环境包\       ← 来自「环境包」（python.exe 在这个目录里）
+```
+
+1. 双击 `MyPixelTool\初始化模型目录.bat` —— 把 `..\models\` 联接进 `ComfyUI\models\`
+2. 把模型放进 `models\<子目录>\`（照 `models\manifest.json` 的 `target` 字段摆；见下方「模型」）
+3. 双击 `MyPixelTool\启动网页界面.bat` —— 它会自动找到旁边的 `comfyui内置环境包\python.exe`
+4. 浏览器打开 <http://127.0.0.1:8899>
+
+> 环境包里的 torch 是 `2.10.0+cu130`，需要 **NVIDIA 驱动 >= 580**（含 CUDA 12.8 以上）。
+> 驱动太老会报 `CUDA driver version is insufficient`，去 NVIDIA 官网更新即可，与网盘包无关。
+>
+> 网盘链接若失效请到 [Issues](https://github.com/MiracleCreater/pixel-sprite-studio/issues) 反馈。
+> 模型本身**不必**从网盘下 —— `download_models.py` 能自动下全并校验。
 
 ## 目录结构
 
