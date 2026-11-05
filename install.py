@@ -15,6 +15,7 @@
     python install.py --link-models       # 把 models/ 下的目录联接进 ComfyUI\\models
 """
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -25,19 +26,21 @@ COMFY_DIR = os.path.join(HERE, "ComfyUI")
 NODE_SRC = os.path.join(HERE, "custom_nodes", "pixel_memory")
 NODE_DST = os.path.join(COMFY_DIR, "custom_nodes", "pixel_memory")
 COMFY_REPO = "https://github.com/comfyanonymous/ComfyUI.git"
+MANIFEST = os.path.join(HERE, "models", "manifest.json")
+DOWNLOADER = os.path.join(HERE, "download_models.py")
 
 DEFAULT_REF = "v0.42.0"          # 本工具适配过的版本
 TORCH_CU130 = "https://download.pytorch.org/whl/cu130"
 
-MODELS = [
-    ("diffusion_models", "qwen_image_2.1_turbo_bf16.safetensors", "13.3 GB", "文生图主模型（Qwen-Image 2.1 Turbo）"),
-    ("diffusion_models", "fastvideo_fasth3_8step_v2_pruned_int8_convrot.safetensors", "20.6 GB", "图生视频主模型（MiniMax H3 8步加速）"),
-    ("text_encoders", "qwen3vl_8b_fp8_scaled.safetensors", "9.9 GB", "文生图文本编码器"),
-    ("text_encoders", "qwen3vl_32b_minimax_h3_int4_convrot.safetensors", "13.9 GB", "视频文本编码器"),
-    ("vae", "qwen_image_2.1_vae_bf16.safetensors", "0.6 GB", "图像 VAE"),
-    ("vae", "minimax_h3_video_vae_fp16.safetensors", "4.9 GB", "视频 VAE"),
-    ("background_removal", "rmbg2.0.safetensors", "0.8 GB", "抠图模型（RMBG 2.0）"),
-]
+
+def load_models():
+    """从 models/manifest.json 读清单，保证安装提示与下载脚本永远一致。"""
+    try:
+        with open(MANIFEST, encoding="utf-8") as f:
+            return json.load(f).get("files", [])
+    except Exception:
+        return []
+
 
 
 def run(cmd, **kw):
@@ -125,14 +128,31 @@ def link_models():
     run([sys.executable, "-s", script, "--yes"])
 
 
+def download_models(extra=None):
+    if not os.path.isfile(DOWNLOADER):
+        print("[错误] 找不到 download_models.py")
+        return False
+    cmd = [sys.executable, "-u", DOWNLOADER] + (extra or [])
+    print("  $ " + " ".join(cmd))
+    return subprocess.run(cmd).returncode == 0
+
+
 def print_models():
+    files = load_models()
     print("\n模型清单（放到 ComfyUI/models/<目录>/ 下，或放在本仓库 models/<目录>/ 后执行 --link-models）")
-    print("-" * 78)
-    for folder, name, size, note in MODELS:
-        print(f"  {folder + '/' + name:<62} {size:>7}  {note}")
-    print("-" * 78)
-    print(f"  合计约 64 GB；缺失任意一个都会在生成时报错")
-    print("  国内可从 ModelScope / HuggingFace 镜像下载，文件名必须保持一致")
+    print("-" * 84)
+    if files:
+        for it in files:
+            mark = "*" if it.get("required", True) else " "
+            size = it.get("size", 0) / (1024 ** 3)
+            print(f" {mark} {it['target']:<66} {size:>6.1f} GB  {it.get('label', '')}")
+    else:
+        print("  （读取 models/manifest.json 失败，请检查文件是否存在）")
+    print("-" * 84)
+    print("  * = 必需，共 7 个约 64 GB；标记为空的音频 VAE 本工具用不到")
+    print("  一键下载：python download_models.py    （断点续传，国内默认走 hf-mirror / ModelScope）")
+    print("  只检查：  python download_models.py --check")
+    print("  模型版权归各作者，本仓库不附带；RMBG 2.0 为非商用许可，详见 models/manifest.json")
 
 
 def main():
@@ -142,11 +162,17 @@ def main():
     ap.add_argument("--install-torch", action="store_true", help="安装 CUDA 版 PyTorch")
     ap.add_argument("--torch-index", default=None, help="PyTorch 源，如 cu128/cu130")
     ap.add_argument("--link-models", action="store_true", help="把 models/ 联接进 ComfyUI/models")
+    ap.add_argument("--download-models", action="store_true", help="顺带下载缺失的模型（约 64 GB，可断点续传）")
+    ap.add_argument("--check-models", action="store_true", help="只检查模型是否齐全")
     a = ap.parse_args()
 
-    print("=" * 78)
+    print("=" * 84)
     print("  Pixel Sprite Studio · 安装")
-    print("=" * 78)
+    print("=" * 84)
+
+    if a.check_models:
+        step("检查模型")
+        return 0 if download_models(["--check"]) else 1
 
     step("检查 Python")
     if not python_ok():
@@ -164,19 +190,23 @@ def main():
     if not install_deps(a.skip_deps, a.torch_index, a.install_torch):
         return 1
 
+    step("模型")
+    if a.download_models:
+        if not download_models():
+            print("[提示] 有文件没下成功，可重跑 python download_models.py 断点续传")
+    else:
+        print_models()
+
     if a.link_models:
         step("联接模型目录")
         link_models()
 
-    step("模型清单")
-    print_models()
-
-    print("\n" + "=" * 78)
+    print("\n" + "=" * 84)
     print("安装完成。下一步：")
     print("  Windows：双击 MyPixelTool\\启动网页界面.bat")
     print("  其他平台：python MyPixelTool/webui.py")
     print("  浏览器打开 http://127.0.0.1:8899")
-    print("=" * 78)
+    print("=" * 84)
     return 0
 
 

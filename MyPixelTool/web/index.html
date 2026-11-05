@@ -987,6 +987,17 @@ renderChips();
 refreshAll();
 pollStatus();
 setInterval(()=>{ if(!pollTimer) pollStatus(); }, 6000);
+
+// 支持 ?asset=名字 深链：打开页面自动载入该资产（方便收藏/分享某个角色）
+const _want = new URLSearchParams(location.search).get("asset");
+if(_want){
+  const _t = setInterval(async ()=>{
+    if(!assets.length) return;
+    clearInterval(_t);
+    if(assets.some(a=>a.name===_want)) selectAsset(_want);
+  }, 600);
+  setTimeout(()=>clearInterval(_t), 15000);
+}
 </script>
 </body>
 </html>

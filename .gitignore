@@ -7,9 +7,12 @@ venv/
 comfyui*/
 comfyui-*/
 
-# 模型权重（保留说明文件）
+# 模型权重（保留清单与说明文件）
 models/*
 !models/README.md
+!models/manifest.json
+*.part
+_testdl/
 
 # 生成结果与打包产物
 MyPixelTool/输出/
