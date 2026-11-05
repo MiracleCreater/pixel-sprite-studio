@@ -130,7 +130,7 @@ python MyPixelTool/pipeline.py --name 小骑士 --image D:\角色.png --actions 
 | 文件 | 大小 | 说明 |
 |---|---|---|
 | `像素动画工坊-整合包.zip` | ~20 MB | 工具本体 + ComfyUI 0.42.0 + 内存节点（不含模型） |
-| `comfyui内置环境包.zip` | ~5 GB | 便携 Python 3.11 + PyTorch 2.10 cu130，已在目标机器验证可跑 |
+| `comfyui内置环境包.zip` | 3.1 GB（解压 5 GB） | 便携 Python 3.11 + PyTorch 2.10 cu130，已在目标机器验证可跑 |
 
 **用法**（两个 zip 都下下来，解压到同一个目录）：
 
