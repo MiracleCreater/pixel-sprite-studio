@@ -9,6 +9,7 @@ import io
 import json
 import os
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -191,6 +192,227 @@ def use_asset_char(name):
     return True
 
 
+# ---------------- 挂机模式（队列 + 生成即落盘） ----------------
+
+HANG_SETTINGS = os.path.join(pl.OUT_ROOT, "_挂机设置.json")
+
+_hang = {
+    "queue": [],          # [{"name","prompt"}] 用户维护的队列
+    "outDir": "",         # 输出根目录（空 = 默认 MyPixelTool\输出）
+    "actions": [],        # 上次执行的动作序列
+    "status": "idle",     # idle | running | done | cancelled | error
+    "idx": 0,             # 当前第几个资产（0 起）
+    "total": 0,           # 队列长度
+    "curName": "",
+    "curAction": "",
+    "stage": "",
+    "message": "",
+    "percent": 0,
+    "logs": [],
+    "done": 0,            # 已完成动作数
+    "plan": 0,            # 计划动作总数 = n × m
+    "fail": [],           # [{"name","error"}]
+    "started": 0,
+    "finished": 0,
+}
+_hang_cancel = {"v": False}
+# 进度折算：每个资产 = 1 个「出图」单元 + m 个「动作」单元，保证百分比全程单调
+_hang_ctx = {"done": 0.0, "total": 1.0}
+
+
+def load_hang_settings():
+    try:
+        with open(HANG_SETTINGS, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        return
+    if not isinstance(d, dict):
+        return
+    q = []
+    for x in d.get("queue") or []:
+        if isinstance(x, dict):
+            n, p = str(x.get("name", "")).strip(), str(x.get("prompt", "")).strip()
+            if n or p:
+                q.append({"name": n, "prompt": p})
+    with _lock:
+        _hang["queue"] = q
+        _hang["outDir"] = str(d.get("outDir") or "")
+        _hang["actions"] = [str(a) for a in (d.get("actions") or []) if str(a).strip()]
+
+
+def save_hang_settings():
+    with _lock:
+        data = {"queue": [dict(x) for x in _hang["queue"]],
+                "outDir": _hang["outDir"], "actions": list(_hang["actions"])}
+    try:
+        os.makedirs(pl.OUT_ROOT, exist_ok=True)
+        with open(HANG_SETTINGS, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("保存挂机设置失败：", e)
+
+
+def hang_out_dir():
+    with _lock:
+        d = (_hang.get("outDir") or "").strip()
+    return os.path.abspath(d) if d else pl.OUT_ROOT
+
+
+def _hang_log(msg, stage="·"):
+    with _lock:
+        _hang["logs"].append({"t": time.strftime("%H:%M:%S"), "stage": stage, "msg": msg})
+        if len(_hang["logs"]) > 600:
+            del _hang["logs"][:200]
+
+
+def _hang_emit(stage, msg, percent=0):
+    """把当前单元内部的 0~100 进度折算成整队列的百分比"""
+    with _lock:
+        total = max(1.0, _hang_ctx["total"])
+        sub = max(0.0, min(1.0, (int(percent) if percent else 0) / 100.0))
+        overall = (_hang_ctx["done"] + sub) / total * 100
+        _hang["stage"] = stage
+        _hang["message"] = msg
+        _hang["percent"] = min(99, max(_hang["percent"], int(overall)))
+        _hang["logs"].append({"t": time.strftime("%H:%M:%S"), "stage": stage, "msg": msg})
+        if len(_hang["logs"]) > 600:
+            del _hang["logs"][:200]
+
+
+def _hang_runner(items, actions, params, out_dir):
+    """串行跑完整个队列：每项出 1 张角色图 → 依次做全部动作 → 每个动作立即落盘"""
+    total = len(items)
+    m = max(1, len(actions))
+    try:
+        pl.ensure_server(_hang_emit)
+        for i, it in enumerate(items):
+            if _hang_cancel["v"]:
+                raise RuntimeError("已取消")
+            name = (it.get("name") or "").strip() or f"资产{i + 1}"
+            prompt = (it.get("prompt") or "").strip()
+            with _lock:
+                _hang.update({"idx": i, "curName": name, "curAction": "",
+                              "stage": "文生图", "message": f"[{i + 1}/{total}] {name} · 生成角色图"})
+                _hang_ctx.update(done=float(i * (1 + m)), total=float(total * (1 + m)))
+            try:
+                if not prompt:
+                    raise RuntimeError("提示词为空，已跳过")
+                cands = pl.generate_candidates(
+                    {"prompt": prompt, "size": params.get("size") or "1328x1328",
+                     "steps": params.get("steps", 8)}, 1, _hang_emit, lambda: _hang_cancel["v"])
+                png = cands[0]["png"]                       # 无脑取第一张
+                key = pl.mem_put(png, pl.new_key("char_"))
+                pl.save_char_image(name, png, root=out_dir)
+                man = pl.load_manifest(name, out_dir)
+                man["prompt"] = prompt
+                pl.save_manifest(name, man, out_dir)
+                try:
+                    pl.mem_drop(cands[0]["key"])
+                except Exception:
+                    pass
+                _hang_log(f"✓ {name} · 角色图已存盘", "角色")
+
+                for j, act in enumerate(actions):
+                    if _hang_cancel["v"]:
+                        raise RuntimeError("已取消")
+                    with _lock:
+                        _hang.update({"curAction": act, "stage": "图生视频",
+                                      "message": f"[{i + 1}/{total}] {name} · {act}"})
+                        _hang_ctx["done"] = float(i * (1 + m) + 1 + j)
+                    res = pl.render_actions({**params, "name": name}, key, [act],
+                                            _hang_emit, lambda: _hang_cancel["v"])
+                    r = res[0]
+                    pl.save_action(name, act, r["frames"], r["pixel"], r["duration"],
+                                   r.get("video"), root=out_dir)
+                    with _lock:
+                        _hang["done"] += 1
+                    _hang_log(f"✓ {name} · {act} 已存盘（{len(r['frames'])} 帧）", "完成")
+            except RuntimeError as e:
+                if "已取消" in str(e):
+                    raise
+                with _lock:
+                    _hang["fail"].append({"name": name, "error": str(e)})
+                _hang_log(f"✗ {name} 失败：{e}（跳过，继续下一个）", "错误")
+            except Exception as e:
+                traceback.print_exc()
+                with _lock:
+                    _hang["fail"].append({"name": name, "error": str(e)})
+                _hang_log(f"✗ {name} 失败：{e}（跳过，继续下一个）", "错误")
+
+        with _lock:
+            fails = len(_hang["fail"])
+            _hang.update({"status": "done", "percent": 100, "stage": "完成",
+                          "message": f"队列跑完：成功 {_hang['done']}/{_hang['plan']} 个动作"
+                                     + (f"，{fails} 个资产失败" if fails else ""),
+                          "curAction": ""})
+    except Exception as e:
+        cancelled = _hang_cancel["v"] or "已取消" in str(e)
+        with _lock:
+            _hang.update({"status": "cancelled" if cancelled else "error",
+                          "stage": "结束", "curAction": "",
+                          "message": "已取消" if cancelled else f"出错：{e}"})
+        if not cancelled:
+            traceback.print_exc()
+    finally:
+        with _lock:
+            _hang["finished"] = time.time()
+
+
+def pick_folder(initial=""):
+    """调 Windows 原生「选择文件夹」对话框。
+
+    便携环境包里的 Python 没有 Tcl/Tk（tkinter 不可用），所以走 PowerShell +
+    System.Windows.Forms.FolderBrowserDialog；结果写临时文件读取，绕开控制台编码问题。
+    """
+    import tempfile
+    out_file = os.path.join(tempfile.gettempdir(),
+                            f"pixel_pick_{os.getpid()}_{int(time.time() * 1000)}.txt")
+    ini = (initial or "").replace("'", "''")
+    ps = (
+        "$ErrorActionPreference='Stop';"
+        "Add-Type -AssemblyName System.Windows.Forms | Out-Null;"
+        "$d=New-Object System.Windows.Forms.FolderBrowserDialog;"
+        "$d.Description='选择挂机输出目录（新文件夹可用右下角按钮创建）';"
+        "$d.ShowNewFolderButton=$true;"
+        f"if('{ini}' -and (Test-Path -LiteralPath '{ini}')){{$d.SelectedPath='{ini}'}};"
+        "        if($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){"
+        f"[System.IO.File]::WriteAllText('{out_file}',$d.SelectedPath,"
+        "[System.Text.Encoding]::UTF8)}"
+    )
+    flags = 0x08000000 if os.name == "nt" else 0   # CREATE_NO_WINDOW：不额外弹黑框
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps],
+                       capture_output=True, timeout=900, creationflags=flags)
+    except Exception as e:
+        print("选择目录失败：", e)
+    finally:
+        pass
+    path = ""
+    try:
+        if os.path.isfile(out_file):
+            with open(out_file, encoding="utf-8-sig") as f:
+                path = f.read().strip()
+            os.remove(out_file)
+    except Exception:
+        pass
+    return path
+
+
+def _writable(d):
+    try:
+        os.makedirs(d, exist_ok=True)
+        probe = os.path.join(d, ".__write_test__")
+        with open(probe, "wb") as f:
+            f.write(b"1")
+        os.remove(probe)
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
+load_hang_settings()
+
+
 # ---------------- 数据 ----------------
 
 def list_assets():
@@ -274,6 +496,16 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             with open(os.path.join(WEB_DIR, "index.html"), "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+
+        if path == "/api/hang":
+            with _lock:
+                st = json.loads(json.dumps(_hang, ensure_ascii=False))
+            st["logs"] = st["logs"][-250:]
+            st["running"] = st["status"] == "running"
+            st["outDirResolved"] = hang_out_dir()
+            st["outDirDefault"] = pl.OUT_ROOT
+            st["defaultExists"] = os.path.isdir(pl.OUT_ROOT)
+            return self._send(200, st)
 
         if path == "/api/status":
             with _lock:
@@ -425,7 +657,9 @@ class Handler(BaseHTTPRequestHandler):
                 if cid in _cand_order:
                     _cand_order.remove(cid)
                 if _selected_cid == cid:
+                    # 丢掉的就是当前在用的那张，当前角色也一并清空，避免“删了还在用”
                     _selected_cid = None
+                    _char.update({"key": None, "png": None, "label": "", "asset": ""})
             if item:
                 pl.mem_drop(item["key"])
             return self._send(200, {"ok": True})
@@ -545,6 +779,124 @@ class Handler(BaseHTTPRequestHandler):
             man = pl.load_manifest(name)
             man.get("actions", {}).pop(action, None)
             pl.save_manifest(name, man)
+            return self._send(200, {"ok": True})
+
+        # ---- 挂机模式 ----
+        if u.path == "/api/hang/queue":
+            body = self._json_body()
+            raw = body.get("queue")
+            if not isinstance(raw, list):
+                return self._send(400, {"error": "queue 必须是数组"})
+            q = []
+            for x in raw:
+                if not isinstance(x, dict):
+                    continue
+                n, p = str(x.get("name", "")).strip(), str(x.get("prompt", "")).strip()
+                if n or p:
+                    q.append({"name": n, "prompt": p})
+            with _lock:
+                if _hang["status"] == "running":
+                    return self._send(409, {"error": "队列正在执行，先停止再改"})
+                _hang["queue"] = q
+            save_hang_settings()
+            return self._send(200, {"ok": True, "count": len(q)})
+
+        if u.path == "/api/hang/pickdir":
+            body = self._json_body()
+            cur = str(body.get("initial") or "").strip()
+            path = pick_folder(cur or hang_out_dir())
+            if not path:
+                return self._send(200, {"ok": False, "cancelled": True})
+            path = os.path.abspath(path)
+            with _lock:
+                _hang["outDir"] = path
+            save_hang_settings()
+            return self._send(200, {"ok": True, "outDir": path})
+
+        if u.path == "/api/hang/outdir":
+            body = self._json_body()
+            raw = str(body.get("outDir") or "").strip()
+            if not raw:
+                with _lock:
+                    _hang["outDir"] = ""
+                save_hang_settings()
+                return self._send(200, {"ok": True, "outDir": pl.OUT_ROOT})
+            path = os.path.abspath(os.path.expanduser(raw))
+            ok, err = _writable(path)
+            if not ok:
+                return self._send(400, {"error": f"目录不可写：{err}"})
+            with _lock:
+                _hang["outDir"] = path
+            save_hang_settings()
+            return self._send(200, {"ok": True, "outDir": path})
+
+        if u.path == "/api/hang/open":
+            body = self._json_body()
+            d = os.path.abspath(str(body.get("dir") or "") or hang_out_dir())
+            try:
+                os.makedirs(d, exist_ok=True)
+                os.startfile(d)          # 仅 Windows
+            except Exception as e:
+                return self._send(500, {"error": f"打不开：{e}"})
+            return self._send(200, {"ok": True, "dir": d})
+
+        if u.path == "/api/hang/start":
+            body = self._json_body()
+            with _lock:
+                if _hang["status"] == "running":
+                    return self._send(409, {"error": "挂机队列正在跑"})
+                if _job["status"] == "running":
+                    return self._send(409, {"error": "普通任务正在跑，等它结束或先取消"})
+            raw = body.get("queue")
+            if isinstance(raw, list):
+                items = [{"name": str(x.get("name", "")).strip(), "prompt": str(x.get("prompt", "")).strip()}
+                         for x in raw if isinstance(x, dict)]
+            else:
+                with _lock:
+                    items = [dict(x) for x in _hang["queue"]]
+            items = [x for x in items if x["name"] and x["prompt"]]
+            if not items:
+                return self._send(400, {"error": "队列为空：每条都要有资产名称和提示词"})
+            acts = [str(a).strip() for a in (body.get("actions") or []) if str(a).strip()]
+            if not acts:
+                return self._send(400, {"error": "请先在第 2 步选好动作序列"})
+
+            out_dir = os.path.abspath(str(body.get("outDir") or "").strip() or hang_out_dir())
+            ok, err = _writable(out_dir)
+            if not ok:
+                return self._send(400, {"error": f"输出目录不可写：{err}"})
+
+            params = {k: body.get(k) for k in
+                      ("motion", "duration", "pixel", "video_size", "size", "steps", "keep_video")
+                      if body.get(k) is not None}
+            with _lock:
+                _hang.update({
+                    "queue": [dict(x) for x in items], "actions": acts, "outDir": out_dir,
+                    "status": "running", "idx": 0, "total": len(items), "curName": "",
+                    "curAction": "", "stage": "准备", "message": "准备开始…", "percent": 0,
+                    "logs": [], "done": 0, "plan": len(items) * len(acts), "fail": [],
+                    "started": time.time(), "finished": 0,
+                })
+                _hang_cancel["v"] = False
+            save_hang_settings()
+            threading.Thread(target=_hang_runner, args=(items, acts, params, out_dir), daemon=True).start()
+            return self._send(200, {"ok": True, "plan": len(items) * len(acts), "outDir": out_dir})
+
+        if u.path == "/api/hang/stop":
+            _hang_cancel["v"] = True
+            with _lock:
+                if _hang["status"] == "running":
+                    _hang["message"] = "正在停止…"
+            return self._send(200, {"ok": True})
+
+        if u.path == "/api/hang/clear":
+            with _lock:
+                if _hang["status"] == "running":
+                    return self._send(409, {"error": "正在跑，先停止"})
+                _hang.update({"queue": [], "status": "idle", "logs": [], "fail": [],
+                              "done": 0, "plan": 0, "percent": 0, "message": "",
+                              "curName": "", "curAction": "", "stage": ""})
+            save_hang_settings()
             return self._send(200, {"ok": True})
 
         return self._send(404, {"error": "not found"})

@@ -211,6 +211,31 @@
   ::-webkit-scrollbar-thumb{background:#d8dbe8;border-radius:9px;border:2px solid #fff}
   ::-webkit-scrollbar-track{background:transparent}
   @media (max-width:1080px){ main{grid-template-columns:1fr} aside{position:static} .meta-box{width:100%} }
+  /* ---------- 挂机模式 ---------- */
+  .hang-dir{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .hang-dir>div:first-child{flex:1;min-width:240px}
+  .hang-plan{display:flex;align-items:center;gap:10px;margin:14px 0 4px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+  .chips-mini{display:flex;gap:6px;flex-wrap:wrap}
+  .chips-mini span{background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:2px 10px;font-size:12px}
+  .hang-head{display:flex;align-items:center;gap:10px;margin:16px 0 8px;flex-wrap:wrap}
+  .hang-list{display:flex;flex-direction:column;gap:8px;max-height:330px;overflow:auto;padding-right:2px}
+  .hrow{display:flex;gap:8px;align-items:center;background:#fbfbfe;border:1px solid var(--line);border-radius:11px;padding:8px 10px}
+  .hrow .no{width:22px;text-align:center;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+  .hrow input{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;
+    font-size:12.5px;font-family:inherit;color:var(--text)}
+  .hrow input.nm{flex:0 0 150px;font-weight:600}
+  .hrow input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(91,91,214,.1)}
+  .hrow .hx{width:22px;height:22px;border-radius:50%;border:none;background:transparent;color:var(--muted);
+    font-size:15px;line-height:1;cursor:pointer;flex:none;padding:0}
+  .hrow .hx:hover{background:var(--err);color:#fff}
+  .paste-box{margin:10px 0;padding:12px;border:1px dashed var(--line);border-radius:12px;background:#fbfbfe}
+  .paste-box textarea{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;resize:vertical;line-height:1.6}
+  .hang-prog{margin-top:16px}
+  .hang-prog .bar{height:9px;border-radius:99px;background:#eceef5;overflow:hidden}
+  .hang-prog .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--primary),var(--primary-2));transition:width .4s}
+  .hang-msg{font-size:12.5px;color:#40465c;margin-top:9px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .hang-msg .pct{color:var(--primary);font-weight:700;font-variant-numeric:tabular-nums;min-width:44px}
+  .hang-empty{padding:22px;text-align:center;color:var(--muted);font-size:12.5px;border:1px dashed var(--line);border-radius:12px}
 </style>
 </head>
 <body>
@@ -385,6 +410,67 @@
         </div>
       </div>
     </section>
+
+    <!-- 5 挂机模式 -->
+    <section class="card" id="hangCard">
+      <h2><span class="idx">5</span>挂机模式<span class="hint" id="hangHint">列好队，一个个人自动出图出动作，直接存盘</span></h2>
+
+      <div class="hang-dir">
+        <div>
+          <label class="f">输出目录（可换盘 / 换文件夹，队列结果都存这里）</label>
+          <input class="input" id="hangDir" placeholder="留空 = 默认 输出 目录" onchange="setHangDir(this.value)">
+        </div>
+        <button class="btn ghost" onclick="pickHangDir()">📁 浏览…</button>
+        <button class="btn ghost" onclick="openHangDir()">打开</button>
+        <button class="btn ghost" onclick="resetHangDir()">用默认</button>
+      </div>
+      <div class="tip" id="hangDirTip" style="margin-top:8px"></div>
+
+      <div class="hang-plan">
+        <span>动作序列（沿用第 2 步，共 <b id="hangActCount">0</b> 个）：</span>
+        <span class="chips-mini" id="hangActs"></span>
+        <span class="spacer"></span>
+        <b id="hangMath" class="tip"></b>
+      </div>
+
+      <div class="hang-head">
+        <b>队列</b>
+        <span class="tip">每条取生成的第一张图当角色图</span>
+        <span class="spacer"></span>
+        <button class="btn ghost sm" onclick="addHangRow()">＋ 新增</button>
+        <button class="btn ghost sm" onclick="togglePaste()">批量粘贴</button>
+        <button class="btn ghost sm" onclick="clearHangQueue()">清空</button>
+      </div>
+
+      <div id="pasteBox" class="paste-box hidden">
+        <textarea id="pasteText" class="input" rows="7" placeholder="支持三种写法，一行一条或按段粘贴：
+
+【资产名称：骑士A。提示词：像素风骑士，蓝披风，正面站立。】
+【资产名称：法师B。提示词：像素风法师，紫袍，手持法杖。】
+
+资产名称：弓箭手C 提示词：像素风弓箭手，绿色斗篷
+骑士D | 像素风骑士，银色铠甲"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn primary sm" onclick="importPaste()">解析并加入队列</button>
+          <button class="btn ghost sm" onclick="togglePaste()">取消</button>
+          <span class="tip" id="pasteTip"></span>
+        </div>
+      </div>
+
+      <div class="hang-list" id="hangList"></div>
+
+      <div class="actions-bar">
+        <button class="btn primary" id="hangStartBtn" onclick="startHang()">▶ 执行队列</button>
+        <button class="btn ghost hidden" id="hangStopBtn" onclick="stopHang()">■ 停止</button>
+        <span class="tip" id="hangTip">同名资产会覆盖同名动作；跑起来别关这个窗口</span>
+      </div>
+
+      <div class="hang-prog hidden" id="hangProg">
+        <div class="bar"><i id="hangBar"></i></div>
+        <div class="hang-msg" id="hangMsg"></div>
+        <div class="log" id="hangLog"></div>
+      </div>
+    </section>
   </div>
 </main>
 
@@ -448,6 +534,7 @@ function renderChips(){
   const add = h(`<button class="chip add">＋ 自定义动作</button>`);
   add.onclick = addCustomAction;
   box.appendChild(add);
+  renderHangActs();          // 挂机模式的动作序列跟着这里同步
 }
 
 function addCustomAction(){
@@ -982,9 +1069,285 @@ async function refreshAll(){
   await renderPending();
 }
 
+/* ================= 挂机模式 ================= */
+let hang = {queue: [], status: "idle", outDir: "", outDirResolved: "", plan: 0, done: 0, fail: [], logs: []};
+let hangQueue = [];
+let hangTimer = null;
+let hangLastStatus = "";
+
+function esc(s){
+  return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+         .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function renderHangActs(){
+  const box = document.getElementById("hangActs");
+  if(!box) return;
+  const acts = [...selectedActions];
+  box.innerHTML = acts.map(a=>`<span>${esc(a)}</span>`).join("") || `<span style="background:#fdeaea;color:#dc2626">还没选动作</span>`;
+  document.getElementById("hangActCount").textContent = acts.length;
+  updateHangMath();
+}
+
+function updateHangMath(){
+  const el = document.getElementById("hangMath");
+  if(!el) return;
+  const n = hangQueue.filter(x=>(x.name||"").trim() && (x.prompt||"").trim()).length;
+  const m = selectedActions.size;
+  el.textContent = `有效 ${n} 条 × ${m} 个动作 = ${n*m} 个输出`;
+  el.style.color = (n && m) ? "var(--primary)" : "var(--muted)";
+}
+
+function renderHangList(){
+  const box = document.getElementById("hangList");
+  if(!box) return;
+  box.innerHTML = "";
+  if(!hangQueue.length){
+    box.appendChild(h(`<div class="hang-empty">队列是空的 —— 点「＋ 新增」加一条，或「批量粘贴」一次贴一堆</div>`));
+    updateHangMath();
+    return;
+  }
+  hangQueue.forEach((it, i)=>{
+    const row = h(`<div class="hrow">
+      <div class="no">${i+1}</div>
+      <input class="nm" placeholder="资产名称" value="${esc(it.name)}">
+      <input class="pt" placeholder="提示词，如：像素风骑士，蓝披风，正面站立" value="${esc(it.prompt)}">
+      <button class="hx" title="删除这条">×</button>
+    </div>`);
+    row.querySelector(".nm").oninput = e=>{ hangQueue[i].name = e.target.value; updateHangMath(); };
+    row.querySelector(".pt").oninput = e=>{ hangQueue[i].prompt = e.target.value; updateHangMath(); };
+    row.querySelector(".nm").onblur = persistHangQueue;
+    row.querySelector(".pt").onblur = persistHangQueue;
+    row.querySelector(".hx").onclick = ()=>{
+      hangQueue.splice(i, 1);
+      renderHangList();
+      persistHangQueue();
+    };
+    box.appendChild(row);
+  });
+  updateHangMath();
+}
+
+function addHangRow(){
+  // 新行默认接在最后一个资产后面
+  hangQueue.push({name: "", prompt: ""});
+  renderHangList();
+  const box = document.getElementById("hangList");
+  box.scrollTop = box.scrollHeight;
+  const last = box.querySelector(".hrow:last-child .nm");
+  if(last) last.focus();
+}
+
+async function persistHangQueue(){
+  await post("/api/hang/queue", {queue: hangQueue});
+}
+
+function togglePaste(){
+  document.getElementById("pasteBox").classList.toggle("hidden");
+  if(!document.getElementById("pasteBox").classList.contains("hidden")){
+    document.getElementById("pasteText").focus();
+  }
+}
+
+function _cleanHangField(s){
+  return String(s || "")
+    .replace(/^[【\[（(\s]+/, "").replace(/[】\]）)\s]+$/, "")
+    .replace(/^[：:]\s*/, "")
+    .replace(/[。.;；,，\s]+$/, "")
+    .trim();
+}
+
+/* 解析「【资产名称：AAA。提示词：BBB。】」/「名称：X 提示词：Y」/「X | Y」 */
+function parseHangText(text){
+  const out = [];
+  let cur = null;
+  const flush = ()=>{ if(cur && ((cur.name||"").trim() || (cur.prompt||"").trim())) out.push(cur); cur = null; };
+  for(const raw of String(text || "").split(/\r?\n/)){
+    const line = raw.replace(/[【】\[\]]/g, " ").trim();
+    if(!line) continue;
+    const mn = line.match(/(?:资产)?名称\s*[:：]\s*([^。;；|]*?)(?=\s*提示词|。|;|；|\||$)/);
+    const mp = line.match(/提示词\s*[:：]\s*(.+)$/);
+    if(mn || mp){
+      if(!cur || (mn && (cur.name||"").trim())) flush();
+      if(!cur) cur = {name: "", prompt: ""};
+      if(mn) cur.name = _cleanHangField(mn[1]);
+      if(mp) cur.prompt = _cleanHangField(mp[1]);
+      if((cur.name||"").trim() && (cur.prompt||"").trim()) flush();
+      continue;
+    }
+    if(line.includes("|") || line.includes("｜")){
+      const parts = line.split(/[|｜]/);
+      flush();
+      out.push({name: _cleanHangField(parts[0]), prompt: _cleanHangField(parts.slice(1).join("|"))});
+      continue;
+    }
+    // 没有标签的纯文本行：补到上一条缺提示词的位置
+    if(cur && !(cur.prompt||"").trim()){ cur.prompt = _cleanHangField(line); flush(); }
+    else { flush(); cur = {name: "", prompt: _cleanHangField(line)}; flush(); }
+  }
+  flush();
+  return out;
+}
+
+function importPaste(){
+  const text = document.getElementById("pasteText").value;
+  const items = parseHangText(text);
+  if(!items.length){ toast("没解析出内容，检查一下格式", true); return; }
+  hangQueue = hangQueue.concat(items);
+  renderHangList();
+  document.getElementById("pasteText").value = "";
+  document.getElementById("pasteBox").classList.add("hidden");
+  document.getElementById("pasteTip").textContent = `已加入 ${items.length} 条`;
+  persistHangQueue();
+  const bad = items.filter(x=>!(x.name||"").trim());
+  toast(bad.length ? `已加入 ${items.length} 条，其中 ${bad.length} 条缺名称，补一下` : `已加入 ${items.length} 条`);
+}
+
+async function clearHangQueue(){
+  if(!confirm("清空整个队列？（已生成的文件不受影响）")) return;
+  hangQueue = [];
+  renderHangList();
+  await post("/api/hang/clear");
+  document.getElementById("hangProg").classList.add("hidden");
+  toast("队列已清空");
+}
+
+function _dirText(d){
+  const shown = d.outDir || "";
+  const resolved = d.outDirResolved || "";
+  document.getElementById("hangDir").value = shown;
+  document.getElementById("hangDir").placeholder = "留空 = 默认 " + resolved;
+  document.getElementById("hangDirTip").innerHTML = shown
+    ? `结果存到：<b>${esc(resolved)}</b>（点「打开」可直接查看）`
+    : `默认存到：<b>${esc(resolved)}</b>；想换盘就点「浏览…」选一个文件夹`;
+}
+
+async function pickHangDir(){
+  toast("请在弹出的窗口里选文件夹…");
+  const cur = document.getElementById("hangDir").value.trim();
+  const {ok, data} = await post("/api/hang/pickdir", {initial: cur});
+  if(!ok){ toast(data.error || "选择失败", true); return; }
+  if(data.cancelled) return;
+  hang.outDir = data.outDir;
+  _dirText({outDir: data.outDir, outDirResolved: data.outDir});
+  toast("输出目录：" + data.outDir);
+}
+
+async function setHangDir(v){
+  const {ok, data} = await post("/api/hang/outdir", {outDir: (v||"").trim()});
+  if(!ok){ toast(data.error || "这个目录用不了", true); document.getElementById("hangDir").value = hang.outDir || ""; return; }
+  hang.outDir = (v||"").trim() ? data.outDir : "";
+  _dirText({outDir: hang.outDir, outDirResolved: data.outDir});
+  toast("输出目录已设为 " + data.outDir);
+}
+
+async function resetHangDir(){
+  await post("/api/hang/outdir", {outDir: ""});
+  hang.outDir = "";
+  refreshHang();
+  toast("已恢复默认输出目录");
+}
+
+async function openHangDir(){
+  const {ok, data} = await post("/api/hang/open", {dir: document.getElementById("hangDir").value.trim()});
+  if(!ok) toast(data.error || "打不开", true);
+}
+
+async function stopHang(){
+  await post("/api/hang/stop");
+  toast("已发送停止请求，当前这一步做完就停");
+}
+
+async function startHang(){
+  const items = hangQueue.map(x=>({name:(x.name||"").trim(), prompt:(x.prompt||"").trim()}))
+                         .filter(x=>x.name && x.prompt);
+  if(!items.length){ toast("队列为空：每条都要填名称和提示词", true); return; }
+  const empties = hangQueue.length - items.length;
+  if(empties > 0 && !confirm(`有 ${empties} 条缺名称或提示词，会被跳过。继续？`)) return;
+  if(!selectedActions.size){ toast("先在第 2 步选好动作序列", true); return; }
+  if(hang.status === "running"){ toast("队列已经在跑了", true); return; }
+
+  const plan = items.length * selectedActions.size;
+  const outDir = document.getElementById("hangDir").value.trim();
+  const target = outDir || hang.outDirResolved || "默认输出目录";
+  const mins = Math.round(plan * 3.2);
+  if(!confirm(`准备挂机：\n\n资产 ${items.length} 个 × 动作 ${selectedActions.size} 个 = ${plan} 个动画\n输出目录：${target}\n预计耗时：约 ${mins} 分钟（每个动作 3~4 分钟）\n\n全程自动，不需要你确认。现在开始？`)) return;
+
+  const body = {
+    queue: items, actions: [...selectedActions], outDir,
+    motion: document.getElementById("motionInput").value,
+    duration: parseFloat(document.getElementById("durRange").value),
+    pixel: parseInt(document.getElementById("pixRange").value),
+    video_size: document.getElementById("videoSize").value,
+    steps: parseInt(document.getElementById("stepsSel").value),
+    keep_video: document.getElementById("keepVideo").checked,
+  };
+  const {ok, data} = await post("/api/hang/start", body);
+  if(!ok){ toast(data.error || "启动失败", true); return; }
+  document.getElementById("hangProg").classList.remove("hidden");
+  document.getElementById("hangLog").innerHTML = "";
+  document.getElementById("hangLog").dataset.n = "";
+  toast(`开始挂机：${plan} 个输出`);
+  refreshHang();
+}
+
+function renderHangProgress(d){
+  const wrap = document.getElementById("hangProg");
+  if(!wrap) return;
+  const running = d.status === "running";
+  const ended = d.status === "done" || d.status === "cancelled" || d.status === "error";
+  if(running || (d.plan|0) > 0) wrap.classList.remove("hidden");
+
+  const pct = running ? (d.percent || 0) : (d.status === "done" ? 100 : (d.percent || 0));
+  document.getElementById("hangBar").style.width = pct + "%";
+
+  const fails = (d.fail || []).length;
+  document.getElementById("hangMsg").innerHTML =
+    `<span class="pct">${pct}%</span>` +
+    `<span>${esc(d.message || (running ? "运行中…" : ""))}</span>` +
+    `<span class="tip">已完成 ${d.done|0} / ${d.plan|0} 个动作` +
+    (fails ? ` · <span style="color:var(--err)">${fails} 个资产失败</span>` : "") + `</span>`;
+
+  const logs = d.logs || [];
+  const box = document.getElementById("hangLog");
+  if(box.dataset.n !== String(logs.length)){
+    box.dataset.n = String(logs.length);
+    box.innerHTML = logs.map(l=>
+      `<div><span class="t">${esc(l.t||"")}</span><span class="s">${esc(l.stage||"")}</span>${esc(l.msg||"")}</div>`
+    ).join("");
+    box.scrollTop = box.scrollHeight;
+  }
+
+  document.getElementById("hangStartBtn").disabled = running;
+  document.getElementById("hangStopBtn").classList.toggle("hidden", !running);
+
+  if(ended && hangLastStatus === "running"){
+    refreshAssets();          // 挂机产物已落盘，刷新左侧资产
+    if(d.status === "done" && !fails) toast("挂机完成，全部成功");
+    if(fails) toast(`挂机结束，${fails} 个资产失败（看日志）`, true);
+  }
+  hangLastStatus = d.status;
+}
+
+async function refreshHang(){
+  const d = await fetch("/api/hang").then(r=>r.json()).catch(()=>null);
+  if(!d || d.status === undefined) return;
+  const first = hang.status === undefined || hang.status === "idle";
+  hang = d;
+  _dirText(d);
+  renderHangActs();
+  if(!hangQueue.length && (d.queue || []).length) hangQueue = (d.queue || []).map(x=>({name:x.name, prompt:x.prompt}));
+  if(!document.getElementById("hangList").children.length || first) renderHangList();
+  renderHangProgress(d);
+
+  if(d.running && !hangTimer) hangTimer = setInterval(refreshHang, 1500);
+  if(!d.running && hangTimer){ clearInterval(hangTimer); hangTimer = null; }
+}
+
 /* ---------- 初始化 ---------- */
 renderChips();
 refreshAll();
+refreshHang();
 pollStatus();
 setInterval(()=>{ if(!pollTimer) pollStatus(); }, 6000);
 

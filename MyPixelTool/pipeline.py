@@ -351,8 +351,11 @@ def safe_name(name):
     return "".join(("_" if c in bad else c) for c in name).strip() or "未命名"
 
 
-def load_manifest(name):
-    p = os.path.join(OUT_ROOT, name, "资产.json")
+def load_manifest(name, root=None):
+    """root：自定义输出根目录（挂机模式可选盘符），默认 OUT_ROOT"""
+    base = root or OUT_ROOT
+    name = safe_name(name)
+    p = os.path.join(base, name, "资产.json")
     data = {"name": name, "prompt": "", "actions": {}, "charImage": ""}
     if os.path.exists(p):
         try:
@@ -360,7 +363,7 @@ def load_manifest(name):
                 data.update(json.load(f))
         except Exception:
             pass
-    d = os.path.join(OUT_ROOT, name)
+    d = os.path.join(base, name)
     if os.path.isdir(d):
         for a in sorted(os.listdir(d)):
             fd = os.path.join(d, a, "像素帧")
@@ -370,25 +373,32 @@ def load_manifest(name):
     return data
 
 
-def save_manifest(name, data):
-    os.makedirs(os.path.join(OUT_ROOT, name), exist_ok=True)
-    with open(os.path.join(OUT_ROOT, name, "资产.json"), "w", encoding="utf-8") as f:
+def save_manifest(name, data, root=None):
+    base = root or OUT_ROOT
+    name = safe_name(name)
+    os.makedirs(os.path.join(base, name), exist_ok=True)
+    with open(os.path.join(base, name, "资产.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def save_char_image(name, png_bytes):
-    d = os.path.join(OUT_ROOT, name)
+def save_char_image(name, png_bytes, root=None):
+    base = root or OUT_ROOT
+    name = safe_name(name)
+    d = os.path.join(base, name)
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "角色图.png"), "wb") as f:
         f.write(png_bytes)
-    man = load_manifest(name)
+    man = load_manifest(name, root)
     man["charImage"] = "角色图.png"
-    save_manifest(name, man)
+    save_manifest(name, man, root)
 
 
-def save_action(name, action, frames, pixel, duration, video_bytes=None):
-    """用户接受后才会调用"""
-    act_dir = os.path.join(OUT_ROOT, name, action)
+def save_action(name, action, frames, pixel, duration, video_bytes=None, root=None):
+    """用户接受（或挂机模式）时才会调用；root 可指定输出根目录"""
+    base = root or OUT_ROOT
+    name = safe_name(name)
+    act = safe_name(action)
+    act_dir = os.path.join(base, name, act)
     final_dir = os.path.join(act_dir, "像素帧")
     os.makedirs(final_dir, exist_ok=True)
     for old in os.listdir(final_dir):
@@ -398,12 +408,12 @@ def save_action(name, action, frames, pixel, duration, video_bytes=None):
         with open(os.path.join(final_dir, f"{i:04d}.png"), "wb") as f:
             f.write(b)
     if video_bytes:
-        with open(os.path.join(act_dir, f"{action}.mp4"), "wb") as f:
+        with open(os.path.join(act_dir, f"{act}.mp4"), "wb") as f:
             f.write(video_bytes)
-    man = load_manifest(name)
-    man["actions"][action] = {"frames": len(frames), "pixel": pixel, "duration": duration,
-                              "created": time.strftime("%Y-%m-%d %H:%M")}
-    save_manifest(name, man)
+    man = load_manifest(name, root)
+    man.setdefault("actions", {})[action] = {"frames": len(frames), "pixel": pixel, "duration": duration,
+                                             "created": time.strftime("%Y-%m-%d %H:%M")}
+    save_manifest(name, man, root)
     return act_dir
 
 
