@@ -48,9 +48,13 @@
   .btn-new{border:1px solid var(--line);background:#fff;border-radius:10px;padding:5px 10px;font-size:12.5px;color:var(--primary)}
   .btn-new:hover{background:var(--primary-soft)}
   .assets{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 180px);overflow:auto;padding-right:2px}
-  .asset{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;transition:.15s;cursor:pointer}
+  .asset{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 30px 10px 12px;display:flex;gap:10px;align-items:center;transition:.15s;cursor:pointer;position:relative}
   .asset:hover{border-color:#d5d8ea;transform:translateY(-1px);box-shadow:var(--shadow)}
   .asset.active{border-color:var(--primary);background:var(--primary-soft)}
+  .asset .ax{position:absolute;right:7px;top:7px;width:20px;height:20px;border-radius:50%;border:none;padding:0;
+    display:none;place-items:center;background:#eef0f6;color:#8d93a8;font-size:13px;line-height:1}
+  .asset:hover .ax{display:grid}
+  .asset .ax:hover{background:var(--err);color:#fff}
   .asset .thumb{width:38px;height:38px;border-radius:8px;flex:none;
     background:#fff repeating-conic-gradient(#e9ebf3 0 25%,#fff 0 50%) 0 0/12px 12px;
     border:1px solid var(--line);display:grid;place-items:center;overflow:hidden}
@@ -76,10 +80,17 @@
   .row>*{flex:1;min-width:170px}
 
   .chips{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 13px;font-size:13px;color:#40465c;transition:.15s}
+  .chip{position:relative;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 13px;font-size:13px;color:#40465c;transition:.15s}
   .chip:hover{border-color:#cfd2e4}
   .chip.on{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 3px 10px rgba(91,91,214,.28)}
   .chip.add{border-style:dashed;color:var(--muted)}
+  .chip .cx{width:15px;height:15px;border-radius:50%;display:none;place-items:center;font-size:12px;line-height:1;
+    background:rgba(20,24,43,.09);color:inherit;font-style:normal;font-weight:700}
+  .chip:hover .cx{display:grid}
+  .chip.on .cx{background:rgba(255,255,255,.28)}
+  .chip .cx:hover{background:var(--err);color:#fff}
+  .chip .has-dot{width:5px;height:5px;border-radius:50%;background:var(--ok);flex:none}
+  .chip.on .has-dot{background:#fff;opacity:.85}
 
   .uploader{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
   .drop{flex:1;min-width:220px;border:1.5px dashed #d6d9e8;border-radius:12px;padding:12px;display:flex;gap:12px;
@@ -160,8 +171,17 @@
   .badge{font-size:11px;background:#fff4e5;color:var(--warn);border:1px solid #f6ddb5;border-radius:999px;padding:1px 8px}
 
   .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-  .tab{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 14px;font-size:13px;color:#40465c}
+  .tab{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 12px;font-size:13px;color:#40465c}
+  .tab .n{opacity:.55;font-size:11.5px}
+  .tab .tx{width:15px;height:15px;border-radius:50%;display:none;place-items:center;font-size:12px;line-height:1;
+    background:rgba(20,24,43,.09);color:inherit;font-style:normal;font-weight:700}
+  .tab:hover .tx{display:grid}
   .tab.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .tab.on .tx{background:rgba(255,255,255,.28)}
+  .tab .tx:hover{background:var(--err);color:#fff}
+  .cand.cur .tag{background:var(--ok)}
+  .cand.cur{border-color:var(--ok);box-shadow:0 0 0 4px rgba(18,162,106,.13)}
+  .cand.cur img{cursor:default}
   .player-wrap{display:flex;gap:18px;flex-wrap:wrap}
   .stage{flex:1;min-width:260px;display:flex;flex-direction:column;gap:12px}
   .canvas-box{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;place-items:center;
@@ -263,7 +283,11 @@
     <section class="card" id="step2">
       <h2><span class="idx">2</span>动作<span class="hint" id="actHint">选中角色图后即可开始</span></h2>
 
-      <label class="f">动作（可多选，每个动作生成一段动画）</label>
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">
+        <label class="f" style="margin:0">动作（可多选，每个动作生成一段动画）</label>
+        <span class="spacer"></span>
+        <a href="javascript:void(0)" onclick="restorePresets()" style="font-size:12px;color:var(--muted)">恢复默认动作</a>
+      </div>
       <div class="chips" id="actionChips"></div>
 
       <div class="row" style="margin-top:14px">
@@ -369,9 +393,11 @@
 <script>
 const PRESET_ACTIONS = ["站立","行走","奔跑","跳跃","攻击","受伤","死亡","施法","防御"];
 let selectedActions = new Set(["站立"]);
+let allActions = [...PRESET_ACTIONS];
 let assets = [], currentAsset = null, currentAction = null;
+let currentAssetActions = new Set();
 let frames = [], images = [], playing = true, fps = 12, zoom = 2, frameIdx = 0, timer = null;
-let cands = [], selectedCid = null, charLabel = "";
+let cands = [], selectedCid = null, charLabel = "", charAsset = "", hasCharPng = false;
 let pendingItems = [];
 const anims = new Map();      // pid -> {imgs, idx, timer}
 let pollTimer = null, lastJobKey = "";
@@ -391,24 +417,71 @@ async function post(url, body){
 }
 
 /* ---------- 动作 chips ---------- */
+function mergeActions(list){
+  (list||[]).forEach(a=>{
+    a = String(a||"").trim();
+    if(a && !allActions.includes(a)) allActions.push(a);
+  });
+}
+function customActionList(){
+  return allActions.filter(a=>!PRESET_ACTIONS.includes(a));
+}
+async function persistActions(){
+  await post("/api/actions", {actions: customActionList()});
+}
 function renderChips(){
   const box = document.getElementById("actionChips");
   box.innerHTML = "";
-  PRESET_ACTIONS.forEach(a=>{
-    const el = h(`<button class="chip ${selectedActions.has(a)?'on':''}">${a}</button>`);
-    el.onclick = ()=>{
-      if(selectedActions.has(a)){ if(selectedActions.size>1) selectedActions.delete(a); }
+  allActions.forEach(a=>{
+    const on = selectedActions.has(a);
+    const has = currentAssetActions.has(a);
+    const el = h(`<button class="chip ${on?'on':''}" title="${has?'该资产已保存此动作，重新生成会覆盖':'点击选择 / 点 × 从列表移除'}">
+      ${has?'<i class="has-dot"></i>':''}<span>${a}</span><i class="cx" title="从列表移除">×</i></button>`);
+    el.onclick = e=>{
+      if(e.target.classList.contains("cx")){ removeActionChip(a); return; }
+      if(on){ if(selectedActions.size>1) selectedActions.delete(a); else toast("至少要留一个动作"); }
       else selectedActions.add(a);
       renderChips();
     };
     box.appendChild(el);
   });
-  const add = h(`<button class="chip add">＋ 自定义</button>`);
-  add.onclick = ()=>{
-    const v = prompt("输入动作名称（如：翻滚 / 蓄力）");
-    if(v && v.trim()){ selectedActions.add(v.trim()); renderChips(); }
-  };
+  const add = h(`<button class="chip add">＋ 自定义动作</button>`);
+  add.onclick = addCustomAction;
   box.appendChild(add);
+}
+
+function addCustomAction(){
+  const v = prompt("输入动作名称（如：翻滚 / 蓄力 / 二段跳）");
+  if(!v || !v.trim()) return;
+  const name = v.trim();
+  if(allActions.includes(name)){ toast("「"+name+"」已经在列表里了"); selectedActions.add(name); renderChips(); return; }
+  allActions.push(name);
+  selectedActions.add(name);
+  renderChips();
+  persistActions();
+  toast("已添加动作「"+name+"」，已自动勾选");
+}
+
+function removeActionChip(a){
+  selectedActions.delete(a);
+  allActions = allActions.filter(x=>x!==a);
+  if(selectedActions.size===0){
+    const first = allActions[0];
+    if(first) selectedActions.add(first);
+  }
+  renderChips();
+  if(!PRESET_ACTIONS.includes(a)) persistActions();
+  const saved = currentAssetActions.has(a);
+  toast(saved ? `已从列表移除「${a}」（已保存的帧还在，去第 4 步可以删）` : `已从列表移除「${a}」`);
+}
+
+function restorePresets(){
+  const miss = PRESET_ACTIONS.filter(a=>!allActions.includes(a));
+  if(!miss.length){ toast("默认动作本来就在列表里"); return; }
+  const merged = [...PRESET_ACTIONS, ...allActions.filter(a=>!PRESET_ACTIONS.includes(a))];
+  allActions = merged;
+  renderChips();
+  toast(`已补回 ${miss.length} 个默认动作`);
 }
 
 /* ---------- 候选图 ---------- */
@@ -417,9 +490,20 @@ async function refreshCandidates(){
   cands = d.items || [];
   selectedCid = d.selected || null;
   charLabel = (d.char && d.char.label) || "";
+  charAsset = (d.char && d.char.asset) || "";
+  hasCharPng = !!(d.char && d.char.hasPng);
   const gallery = document.getElementById("gallery");
-  document.getElementById("galleryWrap").classList.toggle("hidden", !cands.length);
   gallery.innerHTML = "";
+  // 当前角色（来自已保存资产 / 本地上传）单独占一格，方便一眼看到「正在用谁」
+  const showCur = hasCharPng && !selectedCid;
+  if(showCur){
+    const cur = h(`<div class="cand cur" title="当前正在使用的角色图">
+      <img src="/api/charimage?v=${Date.now()}">
+      <div class="tag">✓ 当前角色</div>
+      <div class="bar"><span>${charAsset ? "资产 "+charAsset : (charLabel||"已载入")}</span><span>用于生成</span></div>
+    </div>`);
+    gallery.appendChild(cur);
+  }
   cands.forEach((c, i)=>{
     const el = h(`<div class="cand ${c.cid===selectedCid?'on':''}" data-cid="${c.cid}">
       <img src="/api/cand/${c.cid}.png">
@@ -434,6 +518,7 @@ async function refreshCandidates(){
     el.querySelector(".x").onclick = e=>{ e.stopPropagation(); dropCand(c.cid); };
     gallery.appendChild(el);
   });
+  document.getElementById("galleryWrap").classList.toggle("hidden", !(cands.length || showCur));
   updateCharBadge();
 }
 
@@ -478,17 +563,19 @@ function updateCharBadge(){
   const hint = document.getElementById("charHint");
   const prev = document.getElementById("charPrev");
   const txt = document.getElementById("dropTxt");
-  if(selectedCid || charLabel){
-    hint.innerHTML = `<span class="badge">已选角色：${charLabel || "候选图"}</span> 可以生成动作了`;
+  const ready = !!(selectedCid || hasCharPng || charLabel);
+  if(ready){
+    const who = charAsset ? "资产「"+charAsset+"」" : (charLabel || "候选图");
+    hint.innerHTML = `<span class="badge">当前角色：${who}</span> 可以生成动作了`;
     if(selectedCid) prev.innerHTML = `<img src="/api/cand/${selectedCid}.png">`;
+    else if(hasCharPng) prev.innerHTML = `<img src="/api/charimage?v=${Date.now()}">`;
     else prev.innerHTML = "🖼";
-    txt.innerHTML = `<b>${charLabel || "已有角色图"}</b>点击可替换成别的图片`;
+    txt.innerHTML = `<b>${who}</b>点击可换成别的图片（不会动硬盘上的角色图）`;
   } else {
     hint.textContent = "先批量出图，挑一张满意的";
     prev.textContent = "🧩";
     txt.innerHTML = `<b>或直接拖入一张角色图</b>点击选择 / 拖拽到此处，同样只进内存`;
   }
-  const ready = !!(selectedCid || charLabel);
   document.getElementById("goBtn").disabled = !ready;
   document.getElementById("actHint").textContent = ready ? "选中角色已就绪" : "选中角色图后即可开始";
 }
@@ -510,12 +597,8 @@ async function uploadImage(file){
   const r = await fetch("/api/charimage", {method:"POST", body:buf});
   const d = await r.json().catch(()=>({}));
   if(!r.ok){ toast(d.error || "上传失败", true); return; }
-  selectedCid = null;
-  charLabel = "本地上传";
-  document.getElementById("charPrev").innerHTML = `<img src="${URL.createObjectURL(file)}">`;
-  document.getElementById("dropTxt").innerHTML = `<b>已载入图片</b>${file.name}（还在内存里）`;
-  updateCharBadge();
-  toast("图片已载入内存");
+  await refreshCandidates();
+  toast("图片已载入内存，可直接生成动作");
 }
 
 /* ---------- 生成动作 ---------- */
@@ -536,6 +619,7 @@ async function startActions(){
   const {ok, data} = await post("/api/generate", body);
   if(!ok){ toast(data.error || "启动失败", true); return; }
   currentAsset = name;
+  document.querySelectorAll(".asset").forEach(e=>e.classList.toggle("active", e.dataset.name===name));
   document.getElementById("progTitle").textContent = "生成动作";
   document.getElementById("progCard").classList.remove("hidden");
   document.getElementById("goBtn").disabled = true;
@@ -675,7 +759,8 @@ async function acceptPending(pid){
   toast("已保存到硬盘");
   await renderPending();
   await refreshAssets();
-  if(currentAsset) selectAsset(currentAsset);
+  const nm = data.name || currentAsset;
+  if(nm) await selectAsset(nm, true);
 }
 
 async function dropPending(pid){
@@ -688,6 +773,8 @@ async function dropPending(pid){
 async function refreshAssets(){
   const r = await fetch("/api/assets").then(r=>r.json());
   assets = r.assets || [];
+  mergeActions(r.actions || []);
+  renderChips();
   const box = document.getElementById("assetList");
   box.innerHTML = "";
   if(!assets.length){
@@ -698,62 +785,112 @@ async function refreshAssets(){
     const el = h(`<div class="asset ${a.name===currentAsset?'active':''}" data-name="${a.name}">
       <div class="thumb">🧩</div>
       <div class="meta"><div class="nm">${a.name}</div><div class="sub">${a.actions.length} 个动作</div></div>
+      <button class="ax" title="删除整个资产（含角色图与所有动作）">×</button>
     </div>`);
     const thumb = el.querySelector(".thumb");
-    if(a.actions.length){
+    if(a.hasChar){
+      thumb.innerHTML = `<img src="/api/char?name=${encodeURIComponent(a.name)}&v=${Date.now()}">`;
+    } else if(a.actions.length){
       fetch(`/api/frames?name=${encodeURIComponent(a.name)}&action=${encodeURIComponent(a.actions[0].action)}`)
         .then(r=>r.json()).then(dd=>{ if(dd.frames && dd.frames.length) thumb.innerHTML = `<img src="${dd.frames[0].url}">`; });
-    } else if(a.hasChar){
-      thumb.innerHTML = `<img src="/api/char?name=${encodeURIComponent(a.name)}">`;
     }
     el.onclick = ()=> selectAsset(a.name);
+    el.querySelector(".ax").onclick = e=>{ e.stopPropagation(); deleteAsset(a.name); };
     box.appendChild(el);
   });
 }
 
-function selectAsset(name){
+async function selectAsset(name, quiet){
   currentAsset = name;
+  currentAction = null;
   document.querySelectorAll(".asset").forEach(e=>e.classList.toggle("active", e.dataset.name===name));
   const a = assets.find(x=>x.name===name);
   if(!a) return;
   document.getElementById("nameInput").value = name;
   if(a.prompt) document.getElementById("promptInput").value = a.prompt;
+
+  // 该资产已有的动作并入栏目，并标记出来（再生成会覆盖同名动作）
+  currentAssetActions = new Set(a.actions.map(x=>x.action));
+  mergeActions([...currentAssetActions]);
+  renderChips();
+
+  // 关键：把资产的角色图读回内存，候选区立即切换成它
+  if(!a.hasChar){
+    await post("/api/char/clear");
+    await refreshCandidates();
+    toast(`「${name}」没有角色图，请先上传一张或批量出候选图`, true);
+  } else {
+    const {ok, data} = await post("/api/assets/use", {name});
+    await refreshCandidates();
+    if(!ok){
+      toast(data.error || "读取角色图失败", true);
+    } else if(!quiet){
+      toast(`已载入「${name}」的角色图，可直接生成新动作`);
+    }
+  }
+
   if(a.actions.length){
     renderTabs(a.actions);
     selectAction(a.actions[a.actions.length-1].action);
   } else {
     document.getElementById("viewCard").classList.add("hidden");
+    document.getElementById("viewHint").textContent = "";
   }
 }
 
-function newAsset(){
+async function deleteAsset(name){
+  const a = assets.find(x=>x.name===name);
+  const n = a ? a.actions.length : 0;
+  if(!confirm(`删除资产「${name}」？\n\n会一并删除它的角色图和 ${n} 个动作，不可恢复。`)) return;
+  const {ok, data} = await post("/api/assets/delete", {name});
+  if(!ok){ toast(data.error || "删除失败", true); return; }
+  toast(`已删除资产「${name}」`);
+  if(currentAsset === name) await newAsset(true);
+  await refreshAssets();
+}
+
+async function newAsset(silent){
   currentAsset = null; currentAction = null;
+  currentAssetActions = new Set();
   document.getElementById("nameInput").value = "";
   document.getElementById("promptInput").value = "";
   document.querySelectorAll(".asset").forEach(e=>e.classList.remove("active"));
   document.getElementById("viewCard").classList.add("hidden");
-  document.getElementById("nameInput").focus();
+  document.getElementById("viewHint").textContent = "";
+  renderChips();
+  await post("/api/char/clear");
+  await refreshCandidates();
+  if(!silent){
+    toast("已清空当前角色，可以开始做一个新角色");
+    document.getElementById("nameInput").focus();
+  }
 }
 
 function onNameChange(){
   const n = document.getElementById("nameInput").value.trim();
   const a = assets.find(x=>x.name===n);
-  if(a && a.actions.length){ currentAsset = n; renderTabs(a.actions); selectAction(a.actions[a.actions.length-1].action); }
+  if(a && n !== currentAsset){
+    selectAsset(n);
+  }
 }
 
 function renderTabs(acts){
   const box = document.getElementById("actTabs");
   box.innerHTML = "";
   acts.forEach(a=>{
-    const el = h(`<button class="tab ${a.action===currentAction?'on':''}">${a.action} <span style="opacity:.6">${a.frames}</span></button>`);
-    el.onclick = ()=> selectAction(a.action);
+    const el = h(`<button class="tab ${a.action===currentAction?'on':''}" data-action="${a.action}">
+      <span>${a.action}</span><span class="n">${a.frames}</span><i class="tx" title="删除这个动作">×</i></button>`);
+    el.onclick = e=>{
+      if(e.target.classList.contains("tx")){ deleteActionOf(a.action); return; }
+      selectAction(a.action);
+    };
     box.appendChild(el);
   });
 }
 
 async function selectAction(action){
   currentAction = action;
-  document.querySelectorAll("#actTabs .tab").forEach(t=>t.classList.toggle("on", t.textContent.trim().startsWith(action)));
+  document.querySelectorAll("#actTabs .tab").forEach(t=>t.classList.toggle("on", t.dataset.action===action));
   const d = await fetch(`/api/frames?name=${encodeURIComponent(currentAsset)}&action=${encodeURIComponent(action)}`).then(r=>r.json());
   frames = d.frames || [];
   if(!frames.length){ document.getElementById("viewCard").classList.add("hidden"); return; }
@@ -817,13 +954,27 @@ function downloadZip(){
   a.click();
 }
 
-async function deleteAction(){
-  if(!confirm(`确定删除 ${currentAsset} 的「${currentAction}」这个动作？`)) return;
-  await post("/api/delete", {name: currentAsset, action: currentAction});
-  toast("已删除");
+async function deleteActionOf(action){
+  if(!currentAsset || !action) return;
+  if(!confirm(`确定删除「${currentAsset}」的「${action}」？\n\n像素帧会从硬盘移除，不可恢复。`)) return;
+  const {ok, data} = await post("/api/delete", {name: currentAsset, action});
+  if(!ok){ toast(data.error || "删除失败", true); return; }
+  currentAssetActions.delete(action);
   await refreshAssets();
-  if(currentAsset) selectAsset(currentAsset);
+  const a = assets.find(x=>x.name===currentAsset);
+  if(a && a.actions.length){
+    toast(`已删除动作「${action}」`);
+    await selectAsset(currentAsset, true);
+  } else {
+    currentAction = null;
+    document.getElementById("viewCard").classList.add("hidden");
+    document.getElementById("viewHint").textContent = "";
+    renderChips();
+    toast(`已删除「${action}」，该资产已没有动作；不需要的话点左侧资产右上角的 × 整个删掉`);
+  }
 }
+
+function deleteAction(){ deleteActionOf(currentAction); }
 
 async function refreshAll(){
   await refreshAssets();

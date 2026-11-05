@@ -26,6 +26,8 @@ PORT = 8899
 MAX_CANDS = 24          # 候选图最多保留数量
 MAX_PENDING = 6         # 待接受动作最多保留数量
 
+ACT_LIB = os.path.join(pl.OUT_ROOT, "_动作库.json")   # 自定义动作名（只存名字，不存图片）
+
 _lock = threading.Lock()
 _job = {
     "status": "idle",      # idle | running | done | error | cancelled
@@ -46,7 +48,7 @@ _thread = None
 _cands = {}             # cid -> {"key","png","seed","ts"}
 _cand_order = []
 _selected_cid = None
-_char = {"key": None, "png": None, "label": ""}   # 当前角色图（内存）
+_char = {"key": None, "png": None, "label": "", "asset": ""}   # 当前角色图（内存）
 _pending = {}           # pid -> {name, action, frames, pixel, duration, video, char_png, ts}
 _pending_order = []
 
@@ -141,6 +143,54 @@ def _fail(e):
         traceback.print_exc()
 
 
+# ---------------- 动作库（自定义动作名持久化） ----------------
+
+def load_action_lib():
+    try:
+        with open(ACT_LIB, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            data = data.get("actions", [])
+        if isinstance(data, list):
+            return [str(x).strip() for x in data if str(x).strip()]
+    except Exception:
+        pass
+    return []
+
+
+def save_action_lib(items):
+    os.makedirs(pl.OUT_ROOT, exist_ok=True)
+    clean, seen = [], set()
+    for x in items or []:
+        x = str(x).strip()
+        if x and x not in seen:
+            seen.add(x)
+            clean.append(x)
+    with open(ACT_LIB, "w", encoding="utf-8") as f:
+        json.dump({"actions": clean}, f, ensure_ascii=False, indent=2)
+    return clean
+
+
+def use_asset_char(name):
+    """把已保存资产的角色图重新读进内存，方便继续给它生成新动作。"""
+    global _selected_cid
+    p = os.path.join(pl.OUT_ROOT, pl.safe_name(name), "角色图.png")
+    if not name or not safe_path(p) or not os.path.isfile(p):
+        return False
+    with open(p, "rb") as f:
+        png = f.read()
+    key = None
+    try:
+        key = pl.mem_put(png, pl.new_key("char_"))
+    except Exception as e:
+        # ComfyUI 没开就先不传，点「生成动作」时 _ensure_char_key 会自动重传
+        print("角色图暂存内存池失败（生成时会自动重试）：", e)
+    with _lock:
+        _selected_cid = None
+        _char.update({"key": key, "png": png, "label": name, "asset": name})
+    return True
+
+
 # ---------------- 数据 ----------------
 
 def list_assets():
@@ -232,7 +282,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {"comfy": pl.server_alive(), "memReady": pl.mem_nodes_ready(), "job": job})
 
         if path == "/api/assets":
-            return self._send(200, {"assets": list_assets()})
+            return self._send(200, {"assets": list_assets(), "actions": load_action_lib()})
+
+        if path == "/api/actions":
+            return self._send(200, {"actions": load_action_lib()})
 
         if path == "/api/frames":
             return self._send(200, {"frames": frame_list(q.get("name", [""])[0], q.get("action", [""])[0])})
@@ -248,12 +301,21 @@ class Handler(BaseHTTPRequestHandler):
             with open(p, "rb") as f:
                 return self._send(200, f.read(), "image/png")
 
+        if path == "/api/charimage":
+            # 当前内存角色图（候选/上传/已保存资产都统一从这里预览）
+            with _lock:
+                png = _char.get("png")
+            if not png:
+                return self._send(404, {"error": "no char image"})
+            return self._send(200, png, "image/png")
+
         # --- 内存池：候选图 ---
         if path == "/api/candidates":
             with _lock:
                 items = [{"cid": cid, "seed": _cands[cid]["seed"]} for cid in _cand_order if cid in _cands]
                 sel = _selected_cid
-                char = {"label": _char.get("label", ""), "hasPng": bool(_char.get("png"))}
+                char = {"label": _char.get("label", ""), "hasPng": bool(_char.get("png")),
+                        "asset": _char.get("asset", "")}
             return self._send(200, {"items": items, "selected": sel, "char": char})
 
         if len(parts) == 3 and parts[0] == "api" and parts[1] == "cand":
@@ -352,7 +414,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not item:
                     return self._send(404, {"error": "候选图不存在或已被回收"})
                 _selected_cid = cid
-                _char.update({"key": item["key"], "png": item["png"], "label": "候选图"})
+                _char.update({"key": item["key"], "png": item["png"], "label": "候选图", "asset": ""})
             return self._send(200, {"ok": True})
 
         if u.path == "/api/candidates/drop":
@@ -376,15 +438,42 @@ class Handler(BaseHTTPRequestHandler):
             if len(data) < 100:
                 return self._send(400, {"error": "图片数据无效"})
             try:
-                pl.ensure_server(lambda *a: None)
+                # 不在这里等 ComfyUI 启动：上传要立刻返回，生成时再由 _ensure_char_key 重传
                 key = pl.mem_put(data, pl.new_key("char_"))
             except Exception as e:
                 key = None
-                print("上传失败：", e)
+                print("上传暂存内存池失败（生成时会自动重试）：", e)
             with _lock:
                 _selected_cid = None
-                _char.update({"key": key, "png": data, "label": "本地上传"})
+                _char.update({"key": key, "png": data, "label": "本地上传", "asset": ""})
             return self._send(200, {"ok": True, "key": key})
+
+        if u.path == "/api/char/clear":
+            with _lock:
+                _selected_cid = None
+                _char.update({"key": None, "png": None, "label": "", "asset": ""})
+            return self._send(200, {"ok": True})
+
+        if u.path == "/api/assets/use":
+            body = self._json_body()
+            name = body.get("name", "")
+            if not use_asset_char(name):
+                return self._send(404, {"error": "该资产没有角色图（只能用候选图或上传图片）"})
+            return self._send(200, {"ok": True})
+
+        if u.path == "/api/assets/delete":
+            body = self._json_body()
+            name = pl.safe_name(body.get("name", ""))
+            target = os.path.join(pl.OUT_ROOT, name)
+            if not name or not safe_path(target) or not os.path.isdir(target):
+                return self._send(404, {"error": "资产不存在"})
+            with _lock:
+                if _char.get("asset") == name:
+                    _selected_cid = None
+                    _char.update({"key": None, "png": None, "label": "", "asset": ""})
+            import shutil
+            shutil.rmtree(target, ignore_errors=True)
+            return self._send(200, {"ok": True})
 
         if u.path == "/api/generate":
             body = self._json_body()
@@ -421,7 +510,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 traceback.print_exc()
                 return self._send(500, {"error": f"保存失败：{e}"})
-            return self._send(200, {"ok": True})
+            return self._send(200, {"ok": True, "name": it["name"], "action": it["action"]})
 
         if u.path == "/api/pending/drop":
             body = self._json_body()
@@ -439,18 +528,23 @@ class Handler(BaseHTTPRequestHandler):
                     _job["message"] = "正在取消…"
             return self._send(200, {"ok": True})
 
+        if u.path == "/api/actions":
+            body = self._json_body()
+            return self._send(200, {"ok": True, "actions": save_action_lib(body.get("actions"))})
+
         if u.path == "/api/delete":
             body = self._json_body()
-            name, action = body.get("name", ""), body.get("action", "")
-            target = os.path.join(pl.OUT_ROOT, name, action) if action else os.path.join(pl.OUT_ROOT, name)
-            if not safe_path(target) or not os.path.exists(target):
+            name, action = pl.safe_name(body.get("name", "")), body.get("action", "")
+            if not name or not action:
+                return self._send(400, {"error": "缺少资产名或动作名"})
+            target = os.path.join(pl.OUT_ROOT, name, action)
+            if not safe_path(target) or not os.path.isdir(target):
                 return self._send(404, {"error": "不存在"})
             import shutil
             shutil.rmtree(target, ignore_errors=True)
-            if action:
-                man = pl.load_manifest(name)
-                man.get("actions", {}).pop(action, None)
-                pl.save_manifest(name, man)
+            man = pl.load_manifest(name)
+            man.get("actions", {}).pop(action, None)
+            pl.save_manifest(name, man)
             return self._send(200, {"ok": True})
 
         return self._send(404, {"error": "not found"})
