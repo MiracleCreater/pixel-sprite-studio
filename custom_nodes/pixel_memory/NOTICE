@@ -1,0 +1,9 @@
+pixel_memory — ComfyUI 自定义节点
+================================
+
+本节点作为 ComfyUI 插件运行（进程内导入 ComfyUI 的 server / folder_paths 模块），
+因此以 GPL-3.0 分发，与 ComfyUI 保持一致：
+https://www.gnu.org/licenses/gpl-3.0.html
+
+它本身不含第三方代码，只做一件事：把生成出来的图像/遮罩暂存在
+ComfyUI 进程内存里（不写文件），并通过 HTTP 接口让外部程序取用。

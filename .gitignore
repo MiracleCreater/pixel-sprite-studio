@@ -1,0 +1,26 @@
+# 第三方大件：由 install.py 拉取，不入库
+ComfyUI/
+
+# 运行环境
+.venv/
+venv/
+comfyui*/
+comfyui-*/
+
+# 模型权重（保留说明文件）
+models/*
+!models/README.md
+
+# 生成结果与打包产物
+MyPixelTool/输出/
+MyPixelTool/分享包/
+分享包/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# 杂项
+*.zip
+.DS_Store
+Thumbs.db

@@ -1,0 +1,12 @@
+# .bat 必须是 CRLF，否则 cmd 解析中文多字节字符会错位（历史 bug）
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 其他源码统一 LF
+*.py text eol=lf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf

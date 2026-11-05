@@ -1,0 +1,4 @@
+# 本工具自身额外需要的依赖（ComfyUI 的依赖由 install.py 负责）
+# 装了 ComfyUI requirements 后这两个通常已经存在，此处保证最小可用集
+pillow>=10.0.0
+av>=12.0.0

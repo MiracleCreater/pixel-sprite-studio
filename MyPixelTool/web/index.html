@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyPixelTool · 像素动画工坊</title>
+<style>
+  :root{
+    --bg:#f4f5f9; --card:#ffffff; --line:#e7e9f2; --text:#1d2132; --muted:#6b7185;
+    --primary:#5b5bd6; --primary-2:#7c6cf0; --primary-soft:#eeeefe;
+    --ok:#12a26a; --warn:#d97706; --err:#dc2626;
+    --radius:14px; --shadow:0 1px 2px rgba(24,28,50,.05), 0 8px 24px rgba(24,28,50,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:14px/1.6 "Segoe UI","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit; cursor:pointer}
+  input,textarea,select{font:inherit; color:inherit}
+
+  header{
+    height:60px; display:flex; align-items:center; gap:14px; padding:0 22px;
+    background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+  }
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--primary-2));
+    display:grid;grid-template-columns:repeat(2,1fr);gap:2px;padding:6px}
+  .logo-mark i{background:rgba(255,255,255,.92);border-radius:1px}
+  .logo-mark i:nth-child(2){opacity:.55}
+  .logo-mark i:nth-child(3){opacity:.55}
+  .logo h1{font-size:16px;margin:0;letter-spacing:.3px}
+  .logo span{font-size:12px;color:var(--muted);margin-left:2px}
+  .spacer{flex:1}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+    background:#f3f4f8;font-size:12.5px;color:var(--muted);border:1px solid var(--line)}
+  .dot{width:7px;height:7px;border-radius:50%;background:#c3c7d4}
+  .dot.ok{background:var(--ok);box-shadow:0 0 0 3px rgba(18,162,106,.14)}
+  .dot.err{background:var(--err);box-shadow:0 0 0 3px rgba(220,38,38,.12)}
+
+  main{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;padding:18px 22px 60px;max-width:1560px;margin:0 auto}
+
+  aside{position:sticky;top:78px;align-self:start}
+  .side-head{display:flex;align-items:center;justify-content:space-between;margin:0 4px 10px}
+  .side-head b{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.4px}
+  .btn-new{border:1px solid var(--line);background:#fff;border-radius:10px;padding:5px 10px;font-size:12.5px;color:var(--primary)}
+  .btn-new:hover{background:var(--primary-soft)}
+  .assets{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 180px);overflow:auto;padding-right:2px}
+  .asset{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;transition:.15s;cursor:pointer}
+  .asset:hover{border-color:#d5d8ea;transform:translateY(-1px);box-shadow:var(--shadow)}
+  .asset.active{border-color:var(--primary);background:var(--primary-soft)}
+  .asset .thumb{width:38px;height:38px;border-radius:8px;flex:none;
+    background:#fff repeating-conic-gradient(#e9ebf3 0 25%,#fff 0 50%) 0 0/12px 12px;
+    border:1px solid var(--line);display:grid;place-items:center;overflow:hidden}
+  .asset .thumb img{max-width:100%;max-height:100%;image-rendering:pixelated}
+  .asset .meta{min-width:0}
+  .asset .nm{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .asset .sub{font-size:11.5px;color:var(--muted)}
+  .empty-side{color:var(--muted);font-size:12.5px;padding:18px 10px;text-align:center;border:1px dashed var(--line);border-radius:12px}
+
+  .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
+  .card h2{margin:0 0 14px;font-size:14.5px;display:flex;align-items:center;gap:8px}
+  .card h2 .idx{width:20px;height:20px;border-radius:6px;background:var(--primary-soft);color:var(--primary);
+    display:grid;place-items:center;font-size:11.5px;font-weight:700}
+  .card h2 .hint{font-size:12px;color:var(--muted);font-weight:400;margin-left:auto}
+
+  label.f{display:block;font-size:12.5px;color:var(--muted);margin:0 0 6px}
+  .input,textarea.input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fbfbfe;outline:none;transition:.15s}
+  .input:focus,textarea.input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(91,91,214,.1)}
+  textarea.input{resize:vertical;min-height:70px;line-height:1.65}
+
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:170px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 13px;font-size:13px;color:#40465c;transition:.15s}
+  .chip:hover{border-color:#cfd2e4}
+  .chip.on{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 3px 10px rgba(91,91,214,.28)}
+  .chip.add{border-style:dashed;color:var(--muted)}
+
+  .uploader{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
+  .drop{flex:1;min-width:220px;border:1.5px dashed #d6d9e8;border-radius:12px;padding:12px;display:flex;gap:12px;
+    align-items:center;background:#fbfbfe;cursor:pointer;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--primary);background:var(--primary-soft)}
+  .drop .prev{width:52px;height:52px;border-radius:10px;background:#fff repeating-conic-gradient(#e9ebf3 0 25%,#fff 0 50%) 0 0/12px 12px;
+    border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;flex:none}
+  .drop .prev img{max-width:100%;max-height:100%;image-rendering:pixelated}
+  .drop .txt{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .drop .txt b{display:block;color:var(--text);font-size:13px;margin-bottom:2px}
+
+  .slider{display:flex;align-items:center;gap:12px}
+  .slider input[type=range]{flex:1;accent-color:var(--primary)}
+  .slider .val{min-width:64px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--primary);font-weight:600}
+
+  details.adv{margin-top:4px}
+  details.adv summary{cursor:pointer;font-size:12.5px;color:var(--muted);list-style:none;display:inline-flex;align-items:center;gap:6px}
+  details.adv summary::-webkit-details-marker{display:none}
+  details.adv[open] summary{color:var(--primary)}
+  details.adv .inner{margin-top:12px}
+
+  .actions-bar{display:flex;gap:12px;align-items:center;margin-top:16px;flex-wrap:wrap}
+  .btn{border:none;border-radius:11px;padding:11px 22px;font-weight:600;font-size:14px;transition:.16s}
+  .btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;box-shadow:0 6px 18px rgba(91,91,214,.3)}
+  .btn.primary:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(91,91,214,.36)}
+  .btn.primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:#40465c}
+  .btn.ghost:hover{border-color:#cfd2e4;background:#fafafe}
+  .btn.danger{background:#fff;border:1px solid #f3d3d3;color:var(--err)}
+  .btn.sm{padding:7px 14px;font-size:12.5px;border-radius:9px}
+  .tip{font-size:12px;color:var(--muted)}
+
+  /* 候选画廊 */
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:14px}
+  .cand{position:relative;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;
+    cursor:pointer;transition:.15s;padding:0}
+  .cand:hover{border-color:#c9cbe8;transform:translateY(-2px);box-shadow:var(--shadow)}
+  .cand.on{border-color:var(--primary);box-shadow:0 0 0 4px rgba(91,91,214,.14)}
+  .cand img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;image-rendering:auto}
+  .cand .tag{position:absolute;left:8px;top:8px;background:rgba(20,24,43,.72);color:#fff;font-size:11px;
+    padding:2px 8px;border-radius:999px;backdrop-filter:blur(4px)}
+  .cand.on .tag{background:var(--primary)}
+  .cand .x{position:absolute;right:6px;top:6px;width:22px;height:22px;border-radius:50%;border:none;
+    background:rgba(20,24,43,.6);color:#fff;font-size:13px;line-height:1;display:grid;place-items:center;opacity:0;transition:.15s}
+  .cand:hover .x{opacity:1}
+  .cand .x:hover{background:var(--err)}
+  .cand .bar{position:absolute;left:0;right:0;bottom:0;padding:16px 8px 6px;font-size:11px;color:#fff;
+    background:linear-gradient(transparent,rgba(15,18,32,.72));display:flex;justify-content:space-between}
+
+  .steps{display:flex;gap:6px;margin-bottom:14px}
+  .step{flex:1;text-align:center;font-size:11.5px;color:var(--muted);position:relative;padding-top:14px}
+  .step:before{content:"";position:absolute;top:4px;left:0;right:0;height:4px;border-radius:4px;background:#eceef5}
+  .step.done:before{background:var(--primary)}
+  .step.now:before{background:linear-gradient(90deg,var(--primary),#b7b6f6)}
+  .step.done,.step.now{color:var(--primary);font-weight:600}
+  .bar-track{height:8px;border-radius:99px;background:#eceef5;overflow:hidden}
+  .bar-track>i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--primary),var(--primary-2));transition:width .5s ease}
+  .progress-text{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin:10px 0 0}
+  .log{margin-top:12px;max-height:160px;overflow:auto;background:#0f1220;border-radius:10px;padding:10px 12px;
+    font:12px/1.7 ui-monospace,Consolas,"Cascadia Mono",monospace;color:#c8cee6}
+  .log div{white-space:pre-wrap;word-break:break-word}
+  .log .t{color:#6c7699;margin-right:8px}
+  .log .s{color:#8f8ff0;margin-right:6px}
+
+  /* 待确认结果 */
+  .pend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px}
+  .pend{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fbfbfe;display:flex;flex-direction:column}
+  .pend .pscene{height:150px;display:grid;place-items:center;
+    background:#fff repeating-conic-gradient(#f0f1f7 0 25%,#fff 0 50%) 0 0/16px 16px;border-bottom:1px solid var(--line)}
+  .pend .pscene img{max-height:132px;image-rendering:pixelated}
+  .pend .pinfo{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+  .pend .prow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .pend .prow b{font-size:13.5px}
+  .pend .prow span{font-size:11.5px;color:var(--muted)}
+  .pend .pbtns{display:flex;gap:8px}
+  .pend .pbtns .btn{flex:1;padding:8px 10px;font-size:12.5px;border-radius:9px}
+  .badge{font-size:11px;background:#fff4e5;color:var(--warn);border:1px solid #f6ddb5;border-radius:999px;padding:1px 8px}
+
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .tab{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 14px;font-size:13px;color:#40465c}
+  .tab.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .player-wrap{display:flex;gap:18px;flex-wrap:wrap}
+  .stage{flex:1;min-width:260px;display:flex;flex-direction:column;gap:12px}
+  .canvas-box{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;place-items:center;
+    background:#fff repeating-conic-gradient(#f0f1f7 0 25%,#fff 0 50%) 0 0/16px 16px;min-height:260px}
+  canvas{image-rendering:pixelated; max-width:100%}
+  .player-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .player-bar .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+  .player-bar .seg button{border:none;background:transparent;padding:5px 10px;font-size:12px;color:#5a6076}
+  .player-bar .seg button.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .strip{width:100%;overflow:auto;display:flex;gap:8px;padding:4px 2px 8px}
+  .strip img{height:58px;border-radius:8px;border:1px solid var(--line);background:#fff repeating-conic-gradient(#eef0f6 0 25%,#fff 0 50%) 0 0/10px 10px;image-rendering:pixelated;cursor:pointer;transition:.15s}
+  .strip img:hover,.strip img.on{outline:2px solid var(--primary);outline-offset:1px}
+
+  .meta-box{width:210px;flex:none;display:flex;flex-direction:column;gap:10px}
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:7px 0;border-bottom:1px dashed var(--line)}
+  .kv span{color:var(--muted)}
+  .kv b{font-weight:600}
+  .btn-block{width:100%;justify-content:center;display:flex;align-items:center;gap:8px}
+
+  .hidden{display:none !important}
+  .toast{position:fixed;right:22px;bottom:22px;display:flex;flex-direction:column;gap:10px;z-index:99}
+  .toast div{background:#14182b;color:#fff;padding:11px 16px;border-radius:11px;font-size:13px;
+    box-shadow:0 10px 30px rgba(10,12,25,.28);animation:in .22s ease}
+  .toast div.err{background:#7f1d1d}
+  @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#d8dbe8;border-radius:9px;border:2px solid #fff}
+  ::-webkit-scrollbar-track{background:transparent}
+  @media (max-width:1080px){ main{grid-template-columns:1fr} aside{position:static} .meta-box{width:100%} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark"><i></i><i></i><i></i><i></i></div>
+    <h1>MyPixelTool</h1><span>像素动画工坊</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="pill"><span class="dot" id="comfyDot"></span><span id="comfyText">ComfyUI 检测中…</span></div>
+  <button class="btn ghost sm" onclick="refreshAll()">刷新</button>
+</header>
+
+<main>
+  <aside>
+    <div class="side-head"><b>已保存的资产</b><button class="btn-new" onclick="newAsset()">＋ 新建</button></div>
+    <div class="assets" id="assetList"></div>
+  </aside>
+
+  <div class="col">
+
+    <!-- 1 角色 -->
+    <section class="card" id="step1">
+      <h2><span class="idx">1</span>角色<span class="hint" id="charHint">先批量出图，挑一张满意的</span></h2>
+
+      <div class="row" style="margin-bottom:12px">
+        <div>
+          <label class="f">资产名称（保存时用）</label>
+          <input class="input" id="nameInput" placeholder="例如：小骑士" oninput="onNameChange()">
+        </div>
+        <div style="flex:0 0 auto;min-width:150px">
+          <label class="f">候选数量</label>
+          <select class="input" id="countSel">
+            <option value="2">2 张</option>
+            <option value="4" selected>4 张</option>
+            <option value="6">6 张</option>
+            <option value="8">8 张</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="f">角色提示词</label>
+      <textarea class="input" id="promptInput" placeholder="例：像素风格游戏角色，可爱的小骑士，蓝色斗篷，银色盔甲，全身立绘，简洁背景，游戏sprite风格"></textarea>
+
+      <div class="actions-bar" style="margin-top:12px">
+        <button class="btn primary" id="genCandBtn" onclick="genCandidates()">✦ 批量出候选图</button>
+        <span class="tip" id="candTip">4 张约 3 分钟 · 结果只在内存，挑选后才保存</span>
+      </div>
+
+      <div class="uploader" style="margin-top:14px">
+        <div class="drop" id="drop" onclick="document.getElementById('fileInput').click()">
+          <div class="prev" id="charPrev">🧩</div>
+          <div class="txt" id="dropTxt"><b>或直接拖入一张角色图</b>点击选择 / 拖拽到此处，同样只进内存</div>
+          <input type="file" id="fileInput" accept="image/png,image/jpeg" class="hidden">
+        </div>
+      </div>
+
+      <div id="galleryWrap" class="hidden">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px">
+          <label class="f" style="margin:0">候选图（点击选中，确认后才会用于生成动作）</label>
+          <span class="spacer"></span>
+          <button class="btn ghost sm" onclick="clearCands()">全部清空</button>
+        </div>
+        <div class="gallery" id="gallery"></div>
+      </div>
+    </section>
+
+    <!-- 2 动作 -->
+    <section class="card" id="step2">
+      <h2><span class="idx">2</span>动作<span class="hint" id="actHint">选中角色图后即可开始</span></h2>
+
+      <label class="f">动作（可多选，每个动作生成一段动画）</label>
+      <div class="chips" id="actionChips"></div>
+
+      <div class="row" style="margin-top:14px">
+        <div>
+          <label class="f">视频运动提示词模板</label>
+          <input class="input" id="motionInput" value="原地{动作}动作，循环动画，节奏清晰，游戏角色sprite动画">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <div>
+          <label class="f">每段时长</label>
+          <div class="slider"><input type="range" id="durRange" min="1" max="4" step="0.5" value="2" oninput="durVal.textContent=this.value+' 秒'"><div class="val" id="durVal">2 秒</div></div>
+        </div>
+        <div>
+          <label class="f">像素颗粒（格数）</label>
+          <div class="slider"><input type="range" id="pixRange" min="32" max="128" step="8" value="64" oninput="pixVal.textContent=this.value+' px'"><div class="val" id="pixVal">64 px</div></div>
+        </div>
+      </div>
+
+      <details class="adv">
+        <summary>高级选项</summary>
+        <div class="inner row">
+          <div><label class="f">视频分辨率</label>
+            <select class="input" id="videoSize">
+              <option value="864x480">864 × 480（推荐）</option>
+              <option value="640x352">640 × 352（更快）</option>
+              <option value="1152x640">1152 × 640（更大，更慢）</option>
+            </select>
+          </div>
+          <div><label class="f">文生图步数（turbo 建议 4~8）</label>
+            <select class="input" id="stepsSel">
+              <option>4</option><option selected>8</option><option>12</option><option>20</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end;padding-bottom:6px">
+            <label style="display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="keepVideo"> 保留中间视频（mp4）</label>
+          </div>
+        </div>
+      </details>
+
+      <div class="actions-bar">
+        <button class="btn primary" id="goBtn" onclick="startActions()">▶ 生成动作</button>
+        <button class="btn ghost hidden" id="cancelBtn" onclick="cancelJob()">取消任务</button>
+        <span class="tip" id="goTip">每个动作约 3~4 分钟</span>
+      </div>
+    </section>
+
+    <!-- 进度 -->
+    <section class="card hidden" id="progCard">
+      <h2><span class="idx">··</span><span id="progTitle">生成进度</span><span class="hint" id="progName"></span></h2>
+      <div class="steps" id="stepBar">
+        <div class="step" data-k="文生图">文生图</div>
+        <div class="step" data-k="图生视频">图生视频</div>
+        <div class="step" data-k="去背景">去背景</div>
+        <div class="step" data-k="像素化">像素化</div>
+      </div>
+      <div class="bar-track"><i id="barFill"></i></div>
+      <div class="progress-text"><span id="progMsg">准备中…</span><span id="progPct">0%</span></div>
+      <div class="log" id="logBox"></div>
+    </section>
+
+    <!-- 3 待确认 -->
+    <section class="card hidden" id="pendCard">
+      <h2><span class="idx">3</span>待你确认<span class="hint">接受后才写入硬盘</span></h2>
+      <div class="pend-grid" id="pendGrid"></div>
+    </section>
+
+    <!-- 4 已保存预览 -->
+    <section class="card hidden" id="viewCard">
+      <h2><span class="idx">4</span>已保存的动画<span class="hint" id="viewHint"></span></h2>
+      <div class="tabs" id="actTabs"></div>
+      <div class="player-wrap">
+        <div class="stage">
+          <div class="canvas-box"><canvas id="cv" width="256" height="256"></canvas></div>
+          <div class="player-bar">
+            <button class="btn ghost sm" id="playBtn" onclick="togglePlay()">⏸ 暂停</button>
+            <div class="seg" id="fpsSeg">
+              <button data-fps="8">8 FPS</button><button data-fps="12" class="on">12 FPS</button><button data-fps="24">24 FPS</button>
+            </div>
+            <div class="seg" id="zoomSeg">
+              <button data-z="1">1×</button><button data-z="2" class="on">2×</button><button data-z="4">4×</button><button data-z="6">6×</button>
+            </div>
+            <span id="frameInfo">帧 0 / 0</span>
+          </div>
+          <div class="strip" id="strip"></div>
+        </div>
+        <div class="meta-box">
+          <div class="kv"><span>动作</span><b id="mAct">—</b></div>
+          <div class="kv"><span>帧数</span><b id="mFrames">—</b></div>
+          <div class="kv"><span>像素格</span><b id="mPixel">—</b></div>
+          <button class="btn primary btn-block" onclick="downloadZip()">⬇ 下载 PNG 序列</button>
+          <button class="btn danger btn-block" onclick="deleteAction()">删除该动作</button>
+          <div class="tip">透明 PNG 可直接拖入 Aseprite / Unity / Godot</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PRESET_ACTIONS = ["站立","行走","奔跑","跳跃","攻击","受伤","死亡","施法","防御"];
+let selectedActions = new Set(["站立"]);
+let assets = [], currentAsset = null, currentAction = null;
+let frames = [], images = [], playing = true, fps = 12, zoom = 2, frameIdx = 0, timer = null;
+let cands = [], selectedCid = null, charLabel = "";
+let pendingItems = [];
+const anims = new Map();      // pid -> {imgs, idx, timer}
+let pollTimer = null, lastJobKey = "";
+
+/* ---------- 小工具 ---------- */
+function toast(msg, isErr){
+  const d = document.createElement("div");
+  if(isErr) d.className = "err";
+  d.textContent = msg;
+  document.getElementById("toast").appendChild(d);
+  setTimeout(()=>d.remove(), 3800);
+}
+function h(html){ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstElementChild; }
+async function post(url, body){
+  const r = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body||{})});
+  return {ok:r.ok, data: await r.json().catch(()=>({}))};
+}
+
+/* ---------- 动作 chips ---------- */
+function renderChips(){
+  const box = document.getElementById("actionChips");
+  box.innerHTML = "";
+  PRESET_ACTIONS.forEach(a=>{
+    const el = h(`<button class="chip ${selectedActions.has(a)?'on':''}">${a}</button>`);
+    el.onclick = ()=>{
+      if(selectedActions.has(a)){ if(selectedActions.size>1) selectedActions.delete(a); }
+      else selectedActions.add(a);
+      renderChips();
+    };
+    box.appendChild(el);
+  });
+  const add = h(`<button class="chip add">＋ 自定义</button>`);
+  add.onclick = ()=>{
+    const v = prompt("输入动作名称（如：翻滚 / 蓄力）");
+    if(v && v.trim()){ selectedActions.add(v.trim()); renderChips(); }
+  };
+  box.appendChild(add);
+}
+
+/* ---------- 候选图 ---------- */
+async function refreshCandidates(){
+  const d = await fetch("/api/candidates").then(r=>r.json()).catch(()=>({}));
+  cands = d.items || [];
+  selectedCid = d.selected || null;
+  charLabel = (d.char && d.char.label) || "";
+  const gallery = document.getElementById("gallery");
+  document.getElementById("galleryWrap").classList.toggle("hidden", !cands.length);
+  gallery.innerHTML = "";
+  cands.forEach((c, i)=>{
+    const el = h(`<div class="cand ${c.cid===selectedCid?'on':''}" data-cid="${c.cid}">
+      <img src="/api/cand/${c.cid}.png">
+      <div class="tag">${c.cid===selectedCid?'✓ 已选中':'#'+(i+1)}</div>
+      <button class="x" title="丢弃">×</button>
+      <div class="bar"><span>种子 ${String(c.seed).slice(-6)}</span><span>${c.cid===selectedCid?'用于生成':'点击选中'}</span></div>
+    </div>`);
+    el.onclick = e=>{
+      if(e.target.classList.contains("x")){ return; }
+      selectCand(c.cid);
+    };
+    el.querySelector(".x").onclick = e=>{ e.stopPropagation(); dropCand(c.cid); };
+    gallery.appendChild(el);
+  });
+  updateCharBadge();
+}
+
+async function genCandidates(){
+  const prompt = document.getElementById("promptInput").value.trim();
+  if(!prompt){ toast("请先填写角色提示词", true); return; }
+  const count = parseInt(document.getElementById("countSel").value);
+  const body = {
+    prompt, count,
+    steps: parseInt(document.getElementById("stepsSel").value),
+    size: "1328x1328",
+  };
+  const {ok, data} = await post("/api/candidates/generate", body);
+  if(!ok){ toast(data.error || "启动失败", true); return; }
+  document.getElementById("genCandBtn").disabled = true;
+  document.getElementById("progTitle").textContent = "批量出图";
+  document.getElementById("progCard").classList.remove("hidden");
+  startPolling();
+}
+
+async function selectCand(cid){
+  const {ok, data} = await post("/api/candidates/select", {cid});
+  if(!ok){ toast(data.error || "选择失败", true); return; }
+  selectedCid = cid;
+  await refreshCandidates();
+  toast("已选中这张，可用于生成动作");
+  document.getElementById("step2").scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+async function dropCand(cid){
+  await post("/api/candidates/drop", {cid});
+  await refreshCandidates();
+}
+
+async function clearCands(){
+  for(const c of [...cands]) await post("/api/candidates/drop", {cid: c.cid});
+  await refreshCandidates();
+  toast("候选图已清空（内存已释放）");
+}
+
+function updateCharBadge(){
+  const hint = document.getElementById("charHint");
+  const prev = document.getElementById("charPrev");
+  const txt = document.getElementById("dropTxt");
+  if(selectedCid || charLabel){
+    hint.innerHTML = `<span class="badge">已选角色：${charLabel || "候选图"}</span> 可以生成动作了`;
+    if(selectedCid) prev.innerHTML = `<img src="/api/cand/${selectedCid}.png">`;
+    else prev.innerHTML = "🖼";
+    txt.innerHTML = `<b>${charLabel || "已有角色图"}</b>点击可替换成别的图片`;
+  } else {
+    hint.textContent = "先批量出图，挑一张满意的";
+    prev.textContent = "🧩";
+    txt.innerHTML = `<b>或直接拖入一张角色图</b>点击选择 / 拖拽到此处，同样只进内存`;
+  }
+  const ready = !!(selectedCid || charLabel);
+  document.getElementById("goBtn").disabled = !ready;
+  document.getElementById("actHint").textContent = ready ? "选中角色已就绪" : "选中角色图后即可开始";
+}
+
+/* ---------- 上传 ---------- */
+const drop = document.getElementById("drop");
+document.getElementById("fileInput").addEventListener("change", e=>{
+  if(e.target.files[0]) uploadImage(e.target.files[0]);
+});
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); drop.classList.remove("over");}));
+drop.addEventListener("drop", e=>{
+  const f = e.dataTransfer.files[0];
+  if(f && /image\/(png|jpeg)/.test(f.type)) uploadImage(f);
+});
+
+async function uploadImage(file){
+  const buf = await file.arrayBuffer();
+  const r = await fetch("/api/charimage", {method:"POST", body:buf});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ toast(d.error || "上传失败", true); return; }
+  selectedCid = null;
+  charLabel = "本地上传";
+  document.getElementById("charPrev").innerHTML = `<img src="${URL.createObjectURL(file)}">`;
+  document.getElementById("dropTxt").innerHTML = `<b>已载入图片</b>${file.name}（还在内存里）`;
+  updateCharBadge();
+  toast("图片已载入内存");
+}
+
+/* ---------- 生成动作 ---------- */
+async function startActions(){
+  const name = document.getElementById("nameInput").value.trim();
+  if(!name){ toast("请填写资产名称（保存时用）", true); document.getElementById("nameInput").focus(); return; }
+  if(!selectedCid && !charLabel){ toast("请先选择或上传角色图", true); return; }
+  if(!selectedActions.size){ toast("请至少选择一个动作", true); return; }
+
+  const body = {
+    name, actions: [...selectedActions],
+    motion: document.getElementById("motionInput").value,
+    duration: parseFloat(document.getElementById("durRange").value),
+    pixel: parseInt(document.getElementById("pixRange").value),
+    video_size: document.getElementById("videoSize").value,
+    keep_video: document.getElementById("keepVideo").checked,
+  };
+  const {ok, data} = await post("/api/generate", body);
+  if(!ok){ toast(data.error || "启动失败", true); return; }
+  currentAsset = name;
+  document.getElementById("progTitle").textContent = "生成动作";
+  document.getElementById("progCard").classList.remove("hidden");
+  document.getElementById("goBtn").disabled = true;
+  document.getElementById("cancelBtn").classList.remove("hidden");
+  document.getElementById("progName").textContent = name;
+  document.getElementById("logBox").innerHTML = "";
+  startPolling();
+}
+
+async function cancelJob(){
+  await post("/api/cancel");
+  toast("已发送取消请求");
+}
+
+/* ---------- 轮询 ---------- */
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollStatus, 900);
+  pollStatus();
+}
+const STAGES = ["文生图","图生视频","去背景","像素化"];
+function paintSteps(stage, mode){
+  const list = [...document.querySelectorAll("#stepBar .step")];
+  const idx = STAGES.indexOf(stage);
+  list.forEach((el,i)=>{
+    el.classList.remove("done","now");
+    if(mode==="done"){ el.classList.add("done"); return; }
+    if(idx<0) return;
+    if(i<idx) el.classList.add("done");
+    else if(i===idx) el.classList.add("now");
+  });
+}
+
+async function pollStatus(){
+  let d;
+  try { d = await fetch("/api/status").then(r=>r.json()); } catch(e){ return; }
+  const dot = document.getElementById("comfyDot"), txt = document.getElementById("comfyText");
+  dot.className = "dot " + (d.comfy ? "ok" : "err");
+  txt.textContent = d.comfy ? (d.memReady ? "ComfyUI 运行中" : "ComfyUI 版本过旧，请重启") : "ComfyUI 未启动（生成时自动启动）";
+
+  const j = d.job;
+  if(!j) return;
+  if(j.status === "running"){
+    document.getElementById("progCard").classList.remove("hidden");
+    document.getElementById("barFill").style.width = j.percent + "%";
+    document.getElementById("progPct").textContent = j.percent + "%";
+    document.getElementById("progMsg").textContent = j.message || "";
+    paintSteps(j.stage, "running");
+    const box = document.getElementById("logBox");
+    box.innerHTML = (j.logs||[]).slice(-80).map(l=>`<div><span class="t">${l.t}</span><span class="s">${l.stage}</span>${l.msg}</div>`).join("");
+    box.scrollTop = box.scrollHeight;
+  } else {
+    document.getElementById("goBtn").disabled = false;
+    document.getElementById("genCandBtn").disabled = false;
+    document.getElementById("cancelBtn").classList.add("hidden");
+    const key = j.kind + ":" + j.started + ":" + j.status;
+    if(j.status === "done" && key !== lastJobKey){
+      lastJobKey = key;
+      paintSteps("像素化","done");
+      document.getElementById("barFill").style.width = "100%";
+      document.getElementById("progPct").textContent = "100%";
+      document.getElementById("progMsg").textContent = j.message || "完成";
+      if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+      if(j.kind === "candidates"){
+        toast("候选图已生成，挑一张喜欢的");
+        await refreshCandidates();
+        document.getElementById("galleryWrap").scrollIntoView({behavior:"smooth", block:"center"});
+      } else if(j.kind === "actions"){
+        toast("生成完成，请在下方确认保存");
+        await renderPending();
+      }
+    } else if(j.status === "error" && key !== lastJobKey){
+      lastJobKey = key;
+      document.getElementById("progMsg").textContent = j.message;
+      if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+      toast(j.error || "生成失败", true);
+    } else if(j.status === "cancelled" && key !== lastJobKey){
+      lastJobKey = key;
+      document.getElementById("progMsg").textContent = "已取消";
+      if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+      toast("任务已取消");
+    }
+  }
+}
+
+/* ---------- 待确认 ---------- */
+async function renderPending(){
+  const d = await fetch("/api/pending").then(r=>r.json()).catch(()=>({}));
+  pendingItems = d.items || [];
+  const card = document.getElementById("pendCard");
+  const grid = document.getElementById("pendGrid");
+  card.classList.toggle("hidden", !pendingItems.length);
+  grid.innerHTML = "";
+  pendingItems.forEach(it=>{
+    const el = h(`<div class="pend" data-pid="${it.pid}">
+      <div class="pscene"><img src="/api/pending/${it.pid}/frames/0.png"></div>
+      <div class="pinfo">
+        <div class="prow"><b>${it.action}</b><span>${it.count} 帧 · ${it.pixel}px${it.hasVideo?' · 含mp4':''}</span></div>
+        <div class="pbtns">
+          <button class="btn primary accept">✓ 接受并保存</button>
+          <button class="btn ghost drop">丢弃</button>
+        </div>
+        <div class="tip">接受后才写入「${it.name}」资产</div>
+      </div>
+    </div>`);
+    el.querySelector(".accept").onclick = ()=> acceptPending(it.pid);
+    el.querySelector(".drop").onclick = ()=> dropPending(it.pid);
+    grid.appendChild(el);
+    startAnim(it.pid, el.querySelector("img"), it.count);
+  });
+}
+
+function startAnim(pid, imgEl, count){
+  stopAnim(pid);
+  if(count <= 1) return;
+  const pre = [];
+  for(let i=0;i<count;i++){
+    const im = new Image();
+    im.src = `/api/pending/${pid}/frames/${i}.png`;
+    pre.push(im);
+  }
+  let idx = 0;
+  const timer = setInterval(()=>{
+    idx = (idx + 1) % count;
+    imgEl.src = pre[idx].src;
+  }, 1000/12);
+  anims.set(pid, timer);
+}
+function stopAnim(pid){
+  if(anims.has(pid)){ clearInterval(anims.get(pid)); anims.delete(pid); }
+}
+
+async function acceptPending(pid){
+  stopAnim(pid);
+  const {ok, data} = await post("/api/pending/accept", {pid});
+  if(!ok){ toast(data.error || "保存失败", true); return; }
+  toast("已保存到硬盘");
+  await renderPending();
+  await refreshAssets();
+  if(currentAsset) selectAsset(currentAsset);
+}
+
+async function dropPending(pid){
+  stopAnim(pid);
+  await post("/api/pending/drop", {pid});
+  await renderPending();
+}
+
+/* ---------- 已保存资产 ---------- */
+async function refreshAssets(){
+  const r = await fetch("/api/assets").then(r=>r.json());
+  assets = r.assets || [];
+  const box = document.getElementById("assetList");
+  box.innerHTML = "";
+  if(!assets.length){
+    box.appendChild(h(`<div class="empty-side">还没有保存过资产<br>生成后点「接受」才会出现在这里</div>`));
+    return;
+  }
+  assets.forEach(a=>{
+    const el = h(`<div class="asset ${a.name===currentAsset?'active':''}" data-name="${a.name}">
+      <div class="thumb">🧩</div>
+      <div class="meta"><div class="nm">${a.name}</div><div class="sub">${a.actions.length} 个动作</div></div>
+    </div>`);
+    const thumb = el.querySelector(".thumb");
+    if(a.actions.length){
+      fetch(`/api/frames?name=${encodeURIComponent(a.name)}&action=${encodeURIComponent(a.actions[0].action)}`)
+        .then(r=>r.json()).then(dd=>{ if(dd.frames && dd.frames.length) thumb.innerHTML = `<img src="${dd.frames[0].url}">`; });
+    } else if(a.hasChar){
+      thumb.innerHTML = `<img src="/api/char?name=${encodeURIComponent(a.name)}">`;
+    }
+    el.onclick = ()=> selectAsset(a.name);
+    box.appendChild(el);
+  });
+}
+
+function selectAsset(name){
+  currentAsset = name;
+  document.querySelectorAll(".asset").forEach(e=>e.classList.toggle("active", e.dataset.name===name));
+  const a = assets.find(x=>x.name===name);
+  if(!a) return;
+  document.getElementById("nameInput").value = name;
+  if(a.prompt) document.getElementById("promptInput").value = a.prompt;
+  if(a.actions.length){
+    renderTabs(a.actions);
+    selectAction(a.actions[a.actions.length-1].action);
+  } else {
+    document.getElementById("viewCard").classList.add("hidden");
+  }
+}
+
+function newAsset(){
+  currentAsset = null; currentAction = null;
+  document.getElementById("nameInput").value = "";
+  document.getElementById("promptInput").value = "";
+  document.querySelectorAll(".asset").forEach(e=>e.classList.remove("active"));
+  document.getElementById("viewCard").classList.add("hidden");
+  document.getElementById("nameInput").focus();
+}
+
+function onNameChange(){
+  const n = document.getElementById("nameInput").value.trim();
+  const a = assets.find(x=>x.name===n);
+  if(a && a.actions.length){ currentAsset = n; renderTabs(a.actions); selectAction(a.actions[a.actions.length-1].action); }
+}
+
+function renderTabs(acts){
+  const box = document.getElementById("actTabs");
+  box.innerHTML = "";
+  acts.forEach(a=>{
+    const el = h(`<button class="tab ${a.action===currentAction?'on':''}">${a.action} <span style="opacity:.6">${a.frames}</span></button>`);
+    el.onclick = ()=> selectAction(a.action);
+    box.appendChild(el);
+  });
+}
+
+async function selectAction(action){
+  currentAction = action;
+  document.querySelectorAll("#actTabs .tab").forEach(t=>t.classList.toggle("on", t.textContent.trim().startsWith(action)));
+  const d = await fetch(`/api/frames?name=${encodeURIComponent(currentAsset)}&action=${encodeURIComponent(action)}`).then(r=>r.json());
+  frames = d.frames || [];
+  if(!frames.length){ document.getElementById("viewCard").classList.add("hidden"); return; }
+  document.getElementById("viewCard").classList.remove("hidden");
+  document.getElementById("viewHint").textContent = `${currentAsset} · ${action}`;
+  document.getElementById("mAct").textContent = action;
+  document.getElementById("mFrames").textContent = frames.length + " 帧";
+  document.getElementById("mPixel").textContent = (frames[0].pixel||64) + " px";
+
+  const strip = document.getElementById("strip");
+  strip.innerHTML = "";
+  frames.forEach((f,i)=>{
+    const img = h(`<img src="${f.url}" title="第 ${i} 帧">`);
+    img.onclick = ()=>{ frameIdx = i; drawFrame(); };
+    strip.appendChild(img);
+  });
+
+  images = await Promise.all(frames.map(f=> new Promise(res=>{
+    const im = new Image(); im.onload = ()=>res(im); im.onerror = ()=>res(null); im.src = f.url;
+  })));
+  frameIdx = 0;
+  if(timer) clearInterval(timer);
+  timer = setInterval(tick, 1000/fps);
+  drawFrame();
+  playing = true;
+  document.getElementById("playBtn").textContent = "⏸ 暂停";
+}
+
+function drawFrame(){
+  const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+  const im = images[frameIdx];
+  if(!im) return;
+  ctx.imageSmoothingEnabled = false;
+  cv.width = im.width * zoom;
+  cv.height = im.height * zoom;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.drawImage(im, 0, 0, cv.width, cv.height);
+  document.getElementById("frameInfo").textContent = `帧 ${frameIdx+1} / ${images.length}`;
+  document.querySelectorAll("#strip img").forEach((el,i)=>el.classList.toggle("on", i===frameIdx));
+}
+function tick(){ if(!playing || !images.length) return; frameIdx = (frameIdx + 1) % images.length; drawFrame(); }
+function togglePlay(){ playing = !playing; document.getElementById("playBtn").textContent = playing ? "⏸ 暂停" : "▶ 播放"; }
+document.getElementById("fpsSeg").onclick = e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle("on", x===b));
+  fps = parseInt(b.dataset.fps);
+  if(timer) clearInterval(timer);
+  timer = setInterval(tick, 1000/fps);
+};
+document.getElementById("zoomSeg").onclick = e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle("on", x===b));
+  zoom = parseInt(b.dataset.z);
+  drawFrame();
+};
+
+function downloadZip(){
+  if(!currentAsset || !currentAction) return;
+  const a = document.createElement("a");
+  a.href = `/download?name=${encodeURIComponent(currentAsset)}&action=${encodeURIComponent(currentAction)}`;
+  a.click();
+}
+
+async function deleteAction(){
+  if(!confirm(`确定删除 ${currentAsset} 的「${currentAction}」这个动作？`)) return;
+  await post("/api/delete", {name: currentAsset, action: currentAction});
+  toast("已删除");
+  await refreshAssets();
+  if(currentAsset) selectAsset(currentAsset);
+}
+
+async function refreshAll(){
+  await refreshAssets();
+  await refreshCandidates();
+  await renderPending();
+}
+
+/* ---------- 初始化 ---------- */
+renderChips();
+refreshAll();
+pollStatus();
+setInterval(()=>{ if(!pollTimer) pollStatus(); }, 6000);
+</script>
+</body>
+</html>
