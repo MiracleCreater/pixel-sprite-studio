@@ -19,13 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Note on third-party components:
-
-* ComfyUI (https://github.com/comfyanonymous/ComfyUI) is licensed under
-  GPL-3.0 and is NOT included in this repository; install.py clones it.
-* custom_nodes/pixel_memory is loaded inside the ComfyUI process, therefore it
-  is distributed under GPL-3.0 (see custom_nodes/pixel_memory/NOTICE).
-* Model weights are property of their respective authors and are not included.

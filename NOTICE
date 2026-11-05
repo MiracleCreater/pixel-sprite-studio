@@ -1,0 +1,28 @@
+第三方组件说明
+==============
+
+本仓库自身代码采用 MIT 许可（见 LICENSE）。以下组件**不包含**在本仓库中，
+或采用不同的许可证，使用时请遵守各自的条款。
+
+1. ComfyUI
+   仓库：https://github.com/comfyanonymous/ComfyUI
+   许可：GPL-3.0
+   说明：不随本仓库分发。install.py 会从上游克隆指定 tag（v0.42.0）。
+         GPL-3.0 的传染性仅适用于 ComfyUI 自身及其进程内插件，
+         不会改变本仓库 MyPixelTool/ 下独立进程代码的 MIT 许可。
+
+2. custom_nodes/pixel_memory
+   许可：GPL-3.0（见 custom_nodes/pixel_memory/NOTICE）
+   说明：该节点作为 ComfyUI 插件加载在同一进程内，因此以 GPL-3.0 分发。
+
+3. 模型权重
+   - Qwen-Image 2.1 Turbo（Apache-2.0）        https://huggingface.co/Comfy-Org/Qwen-Image-2.1
+   - MiniMax H3 / FastH3（遵循各自模型许可）    https://huggingface.co/Comfy-Org/MiniMax-H3
+   - Qwen3-VL 文本编码器（Apache-2.0）          https://huggingface.co/Comfy-Org/Qwen3-VL
+   - RMBG 2.0（BRIA 非商用许可）                https://huggingface.co/briaai/RMBG-2.0
+   说明：本仓库**不附带任何权重**，由使用者自行从官方源下载（见 models/manifest.json）。
+         RMBG 2.0 为非商用许可，商业用途需向 BRIA 申请授权。
+
+4. 生成内容的版权
+   由模型推理产生的图像/动画，其权利归属取决于上述模型各自的许可条款
+   与使用者所在司法辖区的规定，本项目不作任何担保。
