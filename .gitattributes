@@ -1,6 +1,7 @@
-# .bat 必须是 CRLF，否则 cmd 解析中文多字节字符会错位（历史 bug）
-*.bat text eol=crlf
-*.cmd text eol=crlf
+# .bat 必须是 CRLF，否则 cmd 解析中文多字节字符会错位（历史 bug）。
+# 用 -text 按二进制原样保存，克隆 / ZIP / raw 下载拿到的都是完全一致的 CRLF 字节。
+*.bat -text
+*.cmd -text
 
 # 其他源码统一 LF
 *.py text eol=lf
@@ -10,3 +11,11 @@
 *.md text eol=lf
 *.txt text eol=lf
 *.json text eol=lf
+
+# 二进制资源
+*.png binary
+*.gif binary
+*.jpg binary
+*.zip binary
+*.7z binary
+*.safetensors binary
