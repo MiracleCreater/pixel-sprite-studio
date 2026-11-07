@@ -20,6 +20,7 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pipeline as pl
+import wizard
 
 WEB_DIR = os.path.join(pl.HERE, "web")
 PORT = 8899
@@ -334,6 +335,10 @@ def hang_out_dir():
     with _lock:
         d = (_hang.get("outDir") or "").strip()
     return os.path.abspath(d) if d else pl.OUT_ROOT
+
+
+# 新手引导需要知道「当前挂机输出目录」才能检查可写性
+wizard.set_out_dir_getter(hang_out_dir)
 
 
 def _hang_log(msg, stage="·"):
@@ -723,6 +728,21 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             with open(os.path.join(WEB_DIR, "index.html"), "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+
+        if path in ("/wizard", "/wizard.html", "/setup"):
+            with open(os.path.join(WEB_DIR, "wizard.html"), "rb") as f:
+                return self._send(200, f.read(), "text/html; charset=utf-8")
+
+        # ---- 新手引导 ----
+        if path == "/api/wizard":
+            force = q.get("force", ["0"])[0] in ("1", "true", "yes")
+            return self._send(200, wizard.checks(force=force))
+
+        if path == "/api/wizard/test.png":
+            png = wizard.test_png()
+            if not png:
+                return self._send(404, {"error": "还没有试画结果"})
+            return self._send(200, png, "image/png")
 
         if path == "/api/hang":
             with _lock:
@@ -1279,6 +1299,27 @@ class Handler(BaseHTTPRequestHandler):
             save_hang_settings()
             return self._send(200, {"ok": True, "dropped": dropped})
 
+        # ---- 新手引导动作 ----
+        if u.path == "/api/wizard/action":
+            body = self._json_body()
+            act = (body.get("action") or "").strip()
+            if act == "recheck":
+                with _lock:
+                    _env_cache["t"] = 0
+                return self._send(200, wizard.checks(force=True))
+            if act == "start_comfy":
+                return self._send(200, wizard.start_comfy())
+            if act in ("download_lite", "download_full"):
+                tier = "full" if act.endswith("full") else "lite"
+                return self._send(200, wizard.start_download(tier))
+            if act == "stop_download":
+                return self._send(200, wizard.stop_download())
+            if act == "test_image":
+                return self._send(200, wizard.start_test())
+            if act in ("open_root", "open_nodes", "open_out"):
+                return self._send(200, wizard.open_path(act.split("_", 1)[1]))
+            return self._send(400, {"error": f"未知动作：{act}"})
+
         return self._send(404, {"error": "not found"})
 
 
@@ -1322,6 +1363,16 @@ def _lan_ips():
     return ips
 
 
+class QuietServer(ThreadingHTTPServer):
+    """用户关网页 / 刷新时产生的断连不打印堆栈，日志里只留真正的问题。"""
+
+    def handle_error(self, request, client_address):
+        et = sys.exc_info()[0]
+        if et in (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            return
+        super().handle_error(request, client_address)
+
+
 def main():
     import argparse
     ap = argparse.ArgumentParser(description="Pixel Sprite Studio 网页界面")
@@ -1347,7 +1398,7 @@ def main():
         return 2
 
     try:
-        srv = ThreadingHTTPServer((host, port), Handler)
+        srv = QuietServer((host, port), Handler)
     except OSError as e:
         print(f"端口 {port} 无法监听：{e}", flush=True)
         return 1

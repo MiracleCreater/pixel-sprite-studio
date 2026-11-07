@@ -30,5 +30,6 @@ Thumbs.db
 
 # 本地运行残留
 MyPixelTool/_web.log
+MyPixelTool/_comfyui.log
 MyPixelTool/_shot.png
 MyPixelTool/_*.py

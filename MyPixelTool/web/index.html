@@ -294,6 +294,7 @@
   <div class="spacer"></div>
   <div class="pill"><span class="dot" id="comfyDot"></span><span id="comfyText">ComfyUI 检测中…</span></div>
   <button class="pill tier" id="tierPill" onclick="toggleEnv()" title="点击查看本机硬件与档位">档位检测中…</button>
+  <button class="btn ghost sm" onclick="location.href='/wizard'" title="第一次用？跟着向导一步步检查环境">新手引导</button>
   <button class="btn ghost sm" onclick="refreshAll()">刷新</button>
 </header>
 
@@ -545,6 +546,18 @@
 <div class="toast" id="toast"></div>
 
 <script>
+/* 第一次打开：先带用户走一遍引导。走过一次（或主动点跳过）就不再打扰。
+   ?nowizard=1 可以强制跳过，?asset=xxx 深链也不劫持。 */
+(function(){
+  try{
+    const seen = localStorage.getItem("pixel_wizard_done");
+    const qs = location.search;
+    if(!seen && !qs.includes("nowizard") && !new URLSearchParams(qs).has("asset")){
+      location.replace("/wizard");
+    }
+  }catch(e){}
+})();
+
 const PRESET_ACTIONS = ["站立","行走","奔跑","跳跃","攻击","受伤","死亡","施法","防御"];
 let selectedActions = new Set(["站立"]);
 let allActions = [...PRESET_ACTIONS];

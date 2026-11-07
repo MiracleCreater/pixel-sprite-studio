@@ -70,6 +70,10 @@ Windows 直接双击 **`一键安装.bat`**，它会依次完成：
 
 完成后双击 **`Start-WebUI.bat`**（或 `MyPixelTool\启动网页界面.bat`），浏览器打开 <http://127.0.0.1:8899>。
 
+> **第一次打开会自动进入「新手引导」**：6 步（程序文件 → 显卡驱动 → 模型 → ComfyUI 服务 → 试画一张 → 保存位置），每步只做一件事，
+> 通过打绿勾、不通过直接给「怎么改」和可点的修复按钮（一键启动 ComfyUI、一键下载模型、试画一张）。
+> 之后随时可以从主界面右上角「新手引导」重进；不想看就在地址后加 `?nowizard=1`。
+
 > 命令行等价写法：`python install.py --install-torch --download-models --link-models --tier auto`
 > 已装过依赖的可以拆开跑：`python install.py --skip-deps` → `下载模型.bat` → `python install.py --link-models`
 > 只想先出图：双击 `下载模型.bat` 选 `[1] lite`；以后想加动画再选 `[2] full`（已下好的文件不会重复下载）
@@ -258,6 +262,12 @@ ComfyUI 是旧进程，关掉后重新生成即可（会自动重启并加载新
 
 **端口 8899 / 8188 被占用**
 8899 是网页界面，重复启动只会再开一个浏览器页；8188 是 ComfyUI，若被别的 ComfyUI 占用，请先关掉它。
+
+**第一次用，不知道从哪一步开始？**
+打开网页会自己进「新手引导」，跟着点就行：绿勾=这步没问题，可以继续；红叉=照着下面的「怎么改」做完再点一次。它会自动把你带到第一个出问题的地方，不用自己找。全绿之后点「开始创作」进入主界面。
+
+**向导说「ComfyUI 没在运行 / 旧版本」？**
+在第 4 步点「启动 ComfyUI」，程序会自己拉起服务并等到节点加载完（首次 30~90 秒）。如果是「旧版本」，先把之前的 ComfyUI 黑窗口关掉再点。
 
 **支持 Linux / macOS？**
 核心逻辑跨平台：`python install.py --skip-deps` + `python download_models.py` + `python MyPixelTool/webui.py`，模型直接放进 `ComfyUI/models/`。`.bat` 仅是 Windows 便利封装。
