@@ -67,6 +67,76 @@ CLIP_I2V = "qwen3vl_32b_minimax_h3_int4_convrot.safetensors"
 VAE_VIDEO = "minimax_h3_video_vae_fp16.safetensors"
 RMBG = "rmbg2.0.safetensors"
 
+
+# ---------------- 模型档位：装了什么就用什么 ----------------
+# 极简档（只出静态图）用 int8 主模型 + w4a8 编码器，比 bf16 省 11GB 显存/体积；
+# 全量档（出动画）用 bf16 高质量主模型。这里按「实际存在的文件」自动挑，
+# 用户不需要改任何配置；一个都没装就退回默认名，让 ComfyUI 自己报缺模型。
+
+MODEL_ROOTS = [os.path.join(COMFY_DIR, "models"), os.path.join(ROOT, "models")]
+
+
+def has_model(rel):
+    """rel 形如 'diffusion_models/xxx.safetensors'"""
+    parts = rel.replace("\\", "/").split("/")
+    for base in MODEL_ROOTS:
+        try:
+            if os.path.isfile(os.path.join(base, *parts)):
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def _pick(folder, names, default=None):
+    for n in names:
+        if has_model(f"{folder}/{n}"):
+            return n
+    return default or names[0]
+
+
+UNET_T2I = _pick("diffusion_models",
+                 ["qwen_image_2.1_turbo_bf16.safetensors",
+                  "qwen_image_2.1_turbo_int8_convrot.safetensors"])
+CLIP_T2I = _pick("text_encoders",
+                 ["qwen3vl_8b_fp8_scaled.safetensors",
+                  "qwen3vl_8b_w4a8.safetensors",
+                  "qwen3vl_8b_int8_convrot.safetensors"])
+
+
+def current_t2i():
+    """每次现查一次（用户可能刚下载完新档位、还没重启服务）"""
+    return (_pick("diffusion_models",
+                  ["qwen_image_2.1_turbo_bf16.safetensors",
+                   "qwen_image_2.1_turbo_int8_convrot.safetensors"]),
+            _pick("text_encoders",
+                  ["qwen3vl_8b_fp8_scaled.safetensors",
+                   "qwen3vl_8b_w4a8.safetensors",
+                   "qwen3vl_8b_int8_convrot.safetensors"]))
+
+
+def video_ready():
+    """出动画需要的三个权重是否齐（缺一个就没法出动画）"""
+    return (has_model(f"diffusion_models/{UNET_I2V}")
+            and has_model(f"text_encoders/{CLIP_I2V}")
+            and has_model(f"vae/{VAE_VIDEO}"))
+
+
+def model_profile():
+    """给界面用的档位信息"""
+    unet, clip = current_t2i()
+    can_video = video_ready()
+    quant = "int8" if ("int8" in unet or "w4a8" in clip) else "bf16"
+    return {
+        "tier": "full" if can_video else "lite",
+        "canVideo": can_video,
+        "canImage": has_model(f"diffusion_models/{unet}"),
+        "quant": quant,
+        "unetT2I": unet,
+        "clipT2I": clip,
+        "hasRMBG": has_model(f"background_removal/{RMBG}"),
+    }
+
 # 去背景分块：8GB 显存一次性喂 50+ 帧会爆显存，改成每块 8 帧、失败自动减半重试
 RMBG_CHUNK = 8
 RMBG_MIN_CHUNK = 2
@@ -225,10 +295,11 @@ def queue_workflow(graph, desc, emit=_noop, base_pct=0, span=10, is_cancelled=No
 # ---------------- 工作流 ----------------
 
 def build_t2i(prompt, width, height, steps, seed, out_key):
+    unet, clip = current_t2i()
     return {
-        "clip":  {"class_type": "CLIPLoader", "inputs": {"clip_name": CLIP_T2I, "type": "qwen_image", "device": "default"}},
+        "clip":  {"class_type": "CLIPLoader", "inputs": {"clip_name": clip, "type": "qwen_image", "device": "default"}},
         "vae":   {"class_type": "VAELoader", "inputs": {"vae_name": VAE_T2I}},
-        "unet":  {"class_type": "UNETLoader", "inputs": {"unet_name": UNET_T2I, "weight_dtype": "default"}},
+        "unet":  {"class_type": "UNETLoader", "inputs": {"unet_name": unet, "weight_dtype": "default"}},
         "pos":   {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": prompt}},
         "neg":   {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": NEG_T2I}},
         "latent": {"class_type": "EmptySD3LatentImage", "inputs": {"width": width, "height": height, "batch_size": 1}},
@@ -393,6 +464,57 @@ def save_char_image(name, png_bytes, root=None):
     save_manifest(name, man, root)
 
 
+PIXEL_IMAGE = "像素图"        # 静态像素图的伪动作名（目录里存 像素图.png）
+
+
+def save_pixel_image(name, png_bytes, pixel, root=None):
+    """保存静态像素图到 <资产>/像素图.png，并在 manifest 里登记"""
+    base = root or OUT_ROOT
+    name = safe_name(name)
+    d = os.path.join(base, name)
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, PIXEL_IMAGE + ".png"), "wb") as f:
+        f.write(png_bytes)
+    man = load_manifest(name, root)
+    man["pixelImage"] = {"pixel": int(pixel), "created": time.strftime("%Y-%m-%d %H:%M")}
+    save_manifest(name, man, root)
+    return os.path.join(d, PIXEL_IMAGE + ".png")
+
+
+def load_pixel_image(name, root=None):
+    """读静态像素图；没有返回 None"""
+    p = os.path.join(root or OUT_ROOT, safe_name(name), PIXEL_IMAGE + ".png")
+    if not os.path.isfile(p):
+        return None
+    with open(p, "rb") as f:
+        return f.read()
+
+
+def pixelize_image(char_key, pixel, emit=_noop, is_cancelled=None, colors=32):
+    """把内存里的角色图抠图 + 像素化，返回像素图 PNG 字节（不动原角色图）"""
+    if not char_key:
+        raise RuntimeError("没有角色图")
+    ensure_server(emit)
+    emit("准备", "环境就绪", 1)
+    mask_key = new_key("pmask_")
+    try:
+        emit("去背景", "抠图中…", 10)
+        free_vram()
+        queue_workflow(build_rmbg(char_key, mask_key), "去背景", emit, 10, 75, is_cancelled)
+        if is_cancelled and is_cancelled():
+            raise RuntimeError("已取消")
+        if int((mem_meta(mask_key) or {}).get("count") or 0) <= 0:
+            raise RuntimeError("去背景没有返回遮罩")
+        mask_bytes = mem_get(mask_key, 0)
+        emit("像素化", "像素化中…", 88)
+        return pixelize_bytes(mem_get(char_key, 0), mask_bytes, int(pixel), colors)
+    finally:
+        try:
+            mem_drop(mask_key)
+        except Exception:
+            pass
+
+
 def save_action(name, action, frames, pixel, duration, video_bytes=None, root=None):
     """用户接受（或挂机模式）时才会调用；root 可指定输出根目录"""
     base = root or OUT_ROOT
@@ -427,6 +549,40 @@ def _parse_size(s, default="1328x1328"):
     return w, h
 
 
+_vram_memo = {}
+
+
+def gpu_vram_gb():
+    """查一次显存并缓存；查不到返回 0（当成未知，不做限制）"""
+    if "v" in _vram_memo:
+        return _vram_memo["v"]
+    v = 0
+    try:
+        import subprocess
+        out = subprocess.run(["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+                             capture_output=True, timeout=10).stdout.decode("utf-8", "ignore")
+        lines = [x for x in out.strip().splitlines() if x.strip()]
+        if lines:
+            v = round(float(lines[0].strip()) / 1024, 1)
+    except Exception:
+        pass
+    _vram_memo["v"] = v
+    return v
+
+
+def cap_size_for_vram(w, h):
+    """显存不足时把分辨率压到安全值。像素图最终只有 32~128px，降分辨率几乎不影响成品"""
+    vram = gpu_vram_gb()
+    if not vram:
+        return w, h, ""
+    cap = 896 if vram < 6 else (1024 if vram < 8 else None)
+    if not cap or max(w, h) <= cap:
+        return w, h, ""
+    scale = cap / max(w, h)
+    nw, nh = _snap32(w * scale), _snap32(h * scale)
+    return nw, nh, f"（显存 {vram}GB，已自动把分辨率从 {w}x{h} 降到 {nw}x{nh}）"
+
+
 def _snap32(v, lo=256):
     return max(lo, round(v / 32) * 32)
 
@@ -436,9 +592,15 @@ def generate_candidates(params, count, emit=_noop, is_cancelled=None):
     prompt = (params.get("prompt") or "").strip()
     if not prompt:
         raise RuntimeError("请先填写角色提示词")
+    _u, _c = current_t2i()
+    if not has_model(f"diffusion_models/{_u}") or not has_model(f"text_encoders/{_c}"):
+        raise RuntimeError("还没装文生图模型；请先双击「下载模型.bat」把模型下齐")
     ensure_server(emit)
     emit("准备", "环境就绪", 1)
     w, h = _parse_size(params.get("size"), "1328x1328")
+    w, h, _cap_note = cap_size_for_vram(w, h)
+    if _cap_note:
+        emit("准备", _cap_note, 1)
     steps = int(params.get("steps", 8))
     count = max(1, min(12, int(count)))
 
@@ -464,6 +626,8 @@ def render_actions(params, char_key, actions, emit=_noop, is_cancelled=None):
     """基于内存中的角色图生成动作，像素帧全部留在内存。返回 list[dict]"""
     if not char_key:
         raise RuntimeError("没有角色图，请先生成或选择一张")
+    if not video_ready():
+        raise RuntimeError("当前是极简档，没装动画模型；要出动画请运行「下载模型.bat」选全量档")
     ensure_server(emit)
     emit("准备", "环境就绪", 1)
 

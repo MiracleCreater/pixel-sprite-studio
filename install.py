@@ -144,14 +144,17 @@ def print_models():
     if files:
         for it in files:
             mark = "*" if it.get("required", True) else " "
-            size = it.get("size", 0) / (1024 ** 3)
+            size = it.get("size", 0) / 1e9
             print(f" {mark} {it['target']:<66} {size:>6.1f} GB  {it.get('label', '')}")
     else:
         print("  （读取 models/manifest.json 失败，请检查文件是否存在）")
     print("-" * 84)
-    print("  * = 必需，共 7 个约 64 GB；标记为空的音频 VAE 本工具用不到")
-    print("  一键下载：python download_models.py    （断点续传，国内默认走 hf-mirror / ModelScope）")
-    print("  只检查：  python download_models.py --check")
+    print("  两个档位，按电脑配置选：")
+    print("    极简档 lite  约 15 GB  只出静态像素图，4~6GB 显存可跑")
+    print("    全量档 full  约 69 GB  出图 + 出动画，8GB 显存起")
+    print("  自动选档下载：python download_models.py --tier auto")
+    print("  强制某档：    python download_models.py --tier lite / --tier full")
+    print("  只检查：      python download_models.py --check")
     print("  模型版权归各作者，本仓库不附带；RMBG 2.0 为非商用许可，详见 models/manifest.json")
 
 
@@ -162,7 +165,9 @@ def main():
     ap.add_argument("--install-torch", action="store_true", help="安装 CUDA 版 PyTorch")
     ap.add_argument("--torch-index", default=None, help="PyTorch 源，如 cu128/cu130")
     ap.add_argument("--link-models", action="store_true", help="把 models/ 联接进 ComfyUI/models")
-    ap.add_argument("--download-models", action="store_true", help="顺带下载缺失的模型（约 64 GB，可断点续传）")
+    ap.add_argument("--download-models", action="store_true", help="顺带下载缺失的模型（可断点续传）")
+    ap.add_argument("--tier", choices=["auto", "lite", "full"], default="auto",
+                    help="模型档位：lite 约15GB只出图 / full 约69GB含动画 / auto 按显存自动选")
     ap.add_argument("--check-models", action="store_true", help="只检查模型是否齐全")
     a = ap.parse_args()
 
@@ -172,7 +177,7 @@ def main():
 
     if a.check_models:
         step("检查模型")
-        return 0 if download_models(["--check"]) else 1
+        return 0 if download_models(["--check", "--tier", a.tier]) else 1
 
     step("检查 Python")
     if not python_ok():
@@ -192,7 +197,7 @@ def main():
 
     step("模型")
     if a.download_models:
-        if not download_models():
+        if not download_models(["--tier", a.tier]):
             print("[提示] 有文件没下成功，可重跑 python download_models.py 断点续传")
     else:
         print_models()

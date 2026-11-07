@@ -47,7 +47,10 @@
   .side-head b{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.4px}
   .btn-new{border:1px solid var(--line);background:#fff;border-radius:10px;padding:5px 10px;font-size:12.5px;color:var(--primary)}
   .btn-new:hover{background:var(--primary-soft)}
-  .assets{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 180px);overflow:auto;padding-right:2px}
+  .side-search{margin:0 4px 10px}
+  .side-search .input{padding:7px 10px;font-size:12.5px;border-radius:10px}
+  .input.sm{padding:5px 9px;font-size:12.5px;border-radius:8px;width:170px}
+  .assets{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 220px);overflow:auto;padding-right:2px}
   .asset{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 30px 10px 12px;display:flex;gap:10px;align-items:center;transition:.15s;cursor:pointer;position:relative}
   .asset:hover{border-color:#d5d8ea;transform:translateY(-1px);box-shadow:var(--shadow)}
   .asset.active{border-color:var(--primary);background:var(--primary-soft)}
@@ -224,6 +227,7 @@
   .hrow input{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;
     font-size:12.5px;font-family:inherit;color:var(--text)}
   .hrow input.nm{flex:0 0 150px;font-weight:600}
+  .hrow input.ha{flex:0 0 190px;color:#5a5f78}
   .hrow input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(91,91,214,.1)}
   .hrow .hx{width:22px;height:22px;border-radius:50%;border:none;background:transparent;color:var(--muted);
     font-size:15px;line-height:1;cursor:pointer;flex:none;padding:0}
@@ -236,6 +240,48 @@
   .hang-msg{font-size:12.5px;color:#40465c;margin-top:9px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .hang-msg .pct{color:var(--primary);font-weight:700;font-variant-numeric:tabular-nums;min-width:44px}
   .hang-empty{padding:22px;text-align:center;color:var(--muted);font-size:12.5px;border:1px dashed var(--line);border-radius:12px}
+  .hrow .hacts{flex:none;font-size:11.5px;color:var(--muted);background:#eef0f8;border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .hrow.run{border-color:var(--primary);background:var(--primary-soft)}
+  .hrow.run .no{color:var(--primary);font-weight:700}
+  .hrow input:disabled{background:#f3f4fa;color:#5a6076}
+  .quick-add{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .quick-add input{flex:1;min-width:150px}
+  .quick-add input#qaName{flex:0 0 190px}
+  .done-head{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
+  .done-list{display:flex;flex-direction:column;gap:8px;max-height:460px;overflow:auto;padding-right:2px}
+  .drow{display:flex;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:12px;background:#fbfbfe;align-items:flex-start}
+  .drow:hover{border-color:#d5d8ea}
+  .dthumb{width:50px;height:50px;flex:none;border-radius:9px;border:1px solid var(--line);overflow:hidden;
+    background:#fff repeating-conic-gradient(#eef0f6 0 25%,#fff 0 50%) 0 0/12px 12px;display:grid;place-items:center;font-size:17px}
+  .dthumb img{max-width:100%;max-height:100%;image-rendering:pixelated}
+  .dmain{flex:1;min-width:0}
+  .dtop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px}
+  .dtop b{font-size:13.5px}
+  .badge.new{background:#e9f8f1;color:var(--ok);border-color:#bfe8d5}
+  .dacts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .dact{border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 9px;font-size:12px;color:#40465c}
+  .dact:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+  .dact i{font-style:normal;opacity:.5;margin-left:5px;font-size:11px}
+  .dact .dx{margin-left:7px;margin-right:-3px;padding:0 3px;opacity:.45;border-left:1px solid var(--line);cursor:pointer}
+  .dact .dx:hover{opacity:1;color:var(--err);border-color:var(--err)}
+  .btn.danger.sm{padding:4px 12px;font-size:12.5px}
+  .dredo{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+  /* 档位 / 硬件体检 */
+  .pill.tier{cursor:pointer;background:#fff;border:1px solid var(--line);font-weight:600}
+  .pill.tier:hover{border-color:var(--primary);color:var(--primary)}
+  .pill.tier.lite{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+  .env-panel{position:fixed;right:18px;top:62px;width:400px;max-width:calc(100vw - 28px);max-height:calc(100vh - 90px);
+    overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 14px 44px rgba(20,24,50,.16);padding:16px 18px;z-index:70;font-size:12.5px;line-height:1.7}
+  .env-panel h4{margin:0 0 4px;font-size:14px}
+  .env-panel .sub{color:var(--muted);font-size:11.5px;margin-bottom:10px}
+  .env-row{display:flex;justify-content:space-between;gap:14px;padding:4px 0;border-bottom:1px dashed #f0f1f7}
+  .env-row span:first-child{color:var(--muted);flex:none}
+  .env-row span:last-child{text-align:right;color:#2b3050;word-break:break-all}
+  .env-note{margin-top:11px;padding:10px 11px;background:#f7f8fd;border-radius:9px;color:#4b5070}
+  .env-note.warn{background:#fff7ed;color:#9a3412}
+  .env-note b{display:block;margin-bottom:3px}
+  .env-acts{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -247,12 +293,16 @@
   </div>
   <div class="spacer"></div>
   <div class="pill"><span class="dot" id="comfyDot"></span><span id="comfyText">ComfyUI 检测中…</span></div>
+  <button class="pill tier" id="tierPill" onclick="toggleEnv()" title="点击查看本机硬件与档位">档位检测中…</button>
   <button class="btn ghost sm" onclick="refreshAll()">刷新</button>
 </header>
+
+<div class="env-panel hidden" id="envPanel"></div>
 
 <main>
   <aside>
     <div class="side-head"><b>已保存的资产</b><button class="btn-new" onclick="newAsset()">＋ 新建</button></div>
+    <div class="side-search"><input class="input" id="assetSearch" placeholder="搜索资产名 / 提示词…" oninput="renderAssetList()"></div>
     <div class="assets" id="assetList"></div>
   </aside>
 
@@ -283,6 +333,7 @@
 
       <div class="actions-bar" style="margin-top:12px">
         <button class="btn primary" id="genCandBtn" onclick="genCandidates()">✦ 批量出候选图</button>
+        <button class="btn ghost" id="pixelBtn" onclick="pixelizeCurrent()">🖼 直接像素化此图</button>
         <span class="tip" id="candTip">4 张约 3 分钟 · 结果只在内存，挑选后才保存</span>
       </div>
 
@@ -307,6 +358,7 @@
     <!-- 2 动作 -->
     <section class="card" id="step2">
       <h2><span class="idx">2</span>动作<span class="hint" id="actHint">选中角色图后即可开始</span></h2>
+      <div class="env-note warn hidden" id="liteBanner" style="margin:0 0 12px"></div>
 
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">
         <label class="f" style="margin:0">动作（可多选，每个动作生成一段动画）</label>
@@ -413,7 +465,7 @@
 
     <!-- 5 挂机模式 -->
     <section class="card" id="hangCard">
-      <h2><span class="idx">5</span>挂机模式<span class="hint" id="hangHint">列好队，一个个人自动出图出动作，直接存盘</span></h2>
+      <h2><span class="idx">5</span>挂机模式<span class="hint" id="hangHint">队列边跑边加，跑完一条自动从队头摘掉、进「已完成」</span></h2>
 
       <div class="hang-dir">
         <div>
@@ -427,37 +479,43 @@
       <div class="tip" id="hangDirTip" style="margin-top:8px"></div>
 
       <div class="hang-plan">
-        <span>动作序列（沿用第 2 步，共 <b id="hangActCount">0</b> 个）：</span>
+        <span>默认动作序列（第 2 步，共 <b id="hangActCount">0</b> 个；队列里每条还能单独指定）：</span>
         <span class="chips-mini" id="hangActs"></span>
         <span class="spacer"></span>
         <b id="hangMath" class="tip"></b>
       </div>
 
       <div class="hang-head">
-        <b>队列</b>
-        <span class="tip">每条取生成的第一张图当角色图</span>
+        <b>待执行队列</b><span class="badge" id="hangQueueN">0 条</span>
+        <span class="tip">跑完一条自动从队头摘掉；运行中也能继续往队尾加</span>
         <span class="spacer"></span>
-        <button class="btn ghost sm" onclick="addHangRow()">＋ 新增</button>
         <button class="btn ghost sm" onclick="togglePaste()">批量粘贴</button>
-        <button class="btn ghost sm" onclick="clearHangQueue()">清空</button>
+        <button class="btn ghost sm" onclick="clearHangQueue()">清空剩余</button>
       </div>
 
       <div id="pasteBox" class="paste-box hidden">
-        <textarea id="pasteText" class="input" rows="7" placeholder="支持三种写法，一行一条或按段粘贴：
+        <textarea id="pasteText" class="input" rows="7" placeholder="每条 = 【资产名称，图片描述，动作序列】，动作可省略（= 用第 2 步的默认动作）：
 
-【资产名称：骑士A。提示词：像素风骑士，蓝披风，正面站立。】
-【资产名称：法师B。提示词：像素风法师，紫袍，手持法杖。】
+【资产名称：骑士A。提示词：像素风骑士，蓝披风，正面站立。动作：站立，行走，攻击。】
+【资产名称：法师B。提示词：像素风法师，紫袍，手持法杖。动作：施法，待机。】
 
-资产名称：弓箭手C 提示词：像素风弓箭手，绿色斗篷
-骑士D | 像素风骑士，银色铠甲"></textarea>
+资产名称：弓箭手C 描述：像素风弓箭手，绿色斗篷 动作：射击，待机
+骑士D | 像素风骑士，银色铠甲 | 站立,奔跑"></textarea>
         <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn primary sm" onclick="importPaste()">解析并加入队列</button>
+          <button class="btn primary sm" onclick="importPaste()">解析并加到队尾</button>
           <button class="btn ghost sm" onclick="togglePaste()">取消</button>
           <span class="tip" id="pasteTip"></span>
         </div>
       </div>
 
       <div class="hang-list" id="hangList"></div>
+
+      <div class="quick-add">
+        <input class="input" id="qaName" placeholder="新资产名称，如：骑士E">
+        <input class="input" id="qaPrompt" placeholder="图片描述，如：像素风骑士，红色披风，正面站立">
+        <input class="input" id="qaActs" placeholder="动作（可选，逗号分隔；留空=默认）">
+        <button class="btn primary sm" onclick="quickAdd()">＋ 加到队尾</button>
+      </div>
 
       <div class="actions-bar">
         <button class="btn primary" id="hangStartBtn" onclick="startHang()">▶ 执行队列</button>
@@ -470,6 +528,16 @@
         <div class="hang-msg" id="hangMsg"></div>
         <div class="log" id="hangLog"></div>
       </div>
+
+      <div class="hang-head done-head">
+        <b>已完成队列</b><span class="badge" id="doneCount">0</span>
+        <span class="tip">点动作名可在上面的播放器里逐帧看；选好动作点「加入队列」补做</span>
+        <span class="spacer"></span>
+        <input class="input sm" id="doneSearch" placeholder="搜索资产 / 动作…" oninput="renderDone()">
+        <button class="btn ghost sm" onclick="refreshDone(true)">刷新</button>
+        <button class="btn ghost sm" onclick="openHangDir()">打开文件夹</button>
+      </div>
+      <div class="done-list" id="doneList"></div>
     </section>
   </div>
 </main>
@@ -498,15 +566,22 @@ function toast(msg, isErr){
 }
 function h(html){ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstElementChild; }
 async function post(url, body){
-  const r = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body||{})});
-  return {ok:r.ok, data: await r.json().catch(()=>({}))};
+  try{
+    const r = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body||{})});
+    let data = {};
+    try{ data = await r.json(); }catch(e){ data = {}; }
+    if(!r.ok && !data.error) data.error = `请求失败（HTTP ${r.status}）`;
+    return {ok:r.ok, data};
+  }catch(e){
+    return {ok:false, data:{error:"服务没有响应，可能已断开；刷新页面后重试"}};
+  }
 }
 
 /* ---------- 动作 chips ---------- */
 function mergeActions(list){
   (list||[]).forEach(a=>{
     a = String(a||"").trim();
-    if(a && !allActions.includes(a)) allActions.push(a);
+    if(a && a !== "像素图" && !allActions.includes(a)) allActions.push(a);   // 像素图是伪动作，不进动作库
   });
 }
 function customActionList(){
@@ -624,6 +699,22 @@ async function genCandidates(){
   document.getElementById("progTitle").textContent = "批量出图";
   document.getElementById("progCard").classList.remove("hidden");
   startPolling();
+}
+
+async function pixelizeCurrent(){
+  const name = document.getElementById("nameInput").value.trim();
+  if(!name){ toast("先填资产名称，像素图要存到对应资产文件夹里", true); document.getElementById("nameInput").focus(); return; }
+  const btn = document.getElementById("pixelBtn");
+  btn.disabled = true;
+  document.getElementById("progTitle").textContent = "像素化图片";
+  document.getElementById("progCard").classList.remove("hidden");
+  startPolling();
+  const body = {name, pixel: parseInt(document.getElementById("pixRange").value)};
+  const {ok, data} = await post("/api/pixelize", body);
+  btn.disabled = false;
+  if(!ok){ toast(data.error || "像素化失败", true); return; }
+  await refreshAssets();
+  toast(`像素图已存到「${name}」，资产列表和播放器里都能看到`);
 }
 
 async function selectCand(cid){
@@ -862,16 +953,34 @@ async function refreshAssets(){
   assets = r.assets || [];
   mergeActions(r.actions || []);
   renderChips();
+  renderAssetList();
+}
+
+function assetMatch(a, q){
+  if(!q) return true;
+  const hay = (a.name + " " + (a.prompt||"") + " " + (a.actions||[]).map(x=>x.action).join(" ")).toLowerCase();
+  return hay.includes(q.toLowerCase());
+}
+
+function renderAssetList(){
   const box = document.getElementById("assetList");
+  if(!box) return;
+  const qEl = document.getElementById("assetSearch");
+  const q = ((qEl && qEl.value) || "").trim();
+  const shown = assets.filter(a=>assetMatch(a, q));
   box.innerHTML = "";
   if(!assets.length){
     box.appendChild(h(`<div class="empty-side">还没有保存过资产<br>生成后点「接受」才会出现在这里</div>`));
     return;
   }
-  assets.forEach(a=>{
+  if(!shown.length){
+    box.appendChild(h(`<div class="empty-side">没搜到「${esc(q)}」<br>换个关键词，或清空搜索框</div>`));
+    return;
+  }
+  shown.forEach(a=>{
     const el = h(`<div class="asset ${a.name===currentAsset?'active':''}" data-name="${a.name}">
       <div class="thumb">🧩</div>
-      <div class="meta"><div class="nm">${a.name}</div><div class="sub">${a.actions.length} 个动作</div></div>
+      <div class="meta"><div class="nm">${esc(a.name)}</div><div class="sub">${a.actions.length} 个动作</div></div>
       <button class="ax" title="删除整个资产（含角色图与所有动作）">×</button>
     </div>`);
     const thumb = el.querySelector(".thumb");
@@ -890,6 +999,7 @@ async function refreshAssets(){
 async function selectAsset(name, quiet){
   currentAsset = name;
   currentAction = null;
+  viewRoot = "";              // 左侧资产都在默认输出目录，预览回到默认根目录
   document.querySelectorAll(".asset").forEach(e=>e.classList.toggle("active", e.dataset.name===name));
   const a = assets.find(x=>x.name===name);
   if(!a) return;
@@ -978,7 +1088,9 @@ function renderTabs(acts){
 async function selectAction(action){
   currentAction = action;
   document.querySelectorAll("#actTabs .tab").forEach(t=>t.classList.toggle("on", t.dataset.action===action));
-  const d = await fetch(`/api/frames?name=${encodeURIComponent(currentAsset)}&action=${encodeURIComponent(action)}`).then(r=>r.json());
+  const rq = `name=${encodeURIComponent(currentAsset)}&action=${encodeURIComponent(action)}`
+           + (viewRoot ? `&root=${encodeURIComponent(viewRoot)}` : "");
+  const d = await fetch(`/api/frames?${rq}`).then(r=>r.json());
   frames = d.frames || [];
   if(!frames.length){ document.getElementById("viewCard").classList.add("hidden"); return; }
   document.getElementById("viewCard").classList.remove("hidden");
@@ -1037,16 +1149,36 @@ document.getElementById("zoomSeg").onclick = e=>{
 function downloadZip(){
   if(!currentAsset || !currentAction) return;
   const a = document.createElement("a");
-  a.href = `/download?name=${encodeURIComponent(currentAsset)}&action=${encodeURIComponent(currentAction)}`;
+  a.href = `/download?name=${encodeURIComponent(currentAsset)}&action=${encodeURIComponent(currentAction)}`
+         + (viewRoot ? `&root=${encodeURIComponent(viewRoot)}` : "");
   a.click();
 }
 
 async function deleteActionOf(action){
   if(!currentAsset || !action) return;
-  if(!confirm(`确定删除「${currentAsset}」的「${action}」？\n\n像素帧会从硬盘移除，不可恢复。`)) return;
-  const {ok, data} = await post("/api/delete", {name: currentAsset, action});
+  const isPixel = action === "像素图";
+  if(isPixel){
+    if(!confirm(`确定删除「${currentAsset}」的像素图？\n\n硬盘上的 像素图.png 会移除，不可恢复。`)) return;
+  } else {
+    if(!confirm(`确定删除「${currentAsset}」的「${action}」？\n\n硬盘上的像素帧会一并移除，不可恢复。`)) return;
+  }
+  const body = {name: currentAsset, action};
+  if(viewRoot) body.root = viewRoot;          // 自定义输出目录里的也直接删本地文件
+  const {ok, data} = await post("/api/delete", body);
   if(!ok){ toast(data.error || "删除失败", true); return; }
   currentAssetActions.delete(action);
+  if(viewRoot){
+    // 自定义目录：刷新已完成列表和播放器标签
+    await refreshAssets();
+    await refreshDone();
+    const it = doneItems.find(x=>x.name===currentAsset);
+    const acts = it ? (it.actions||[]) : [];
+    renderTabs(acts);
+    if(!acts.length){ currentAction = null; document.getElementById("viewCard").classList.add("hidden"); }
+    else if(currentAction === action){ await selectAction(acts[acts.length-1].action); }
+    toast(`已删除「${action}」`);
+    return;
+  }
   await refreshAssets();
   const a = assets.find(x=>x.name===currentAsset);
   if(a && a.actions.length){
@@ -1070,10 +1202,17 @@ async function refreshAll(){
 }
 
 /* ================= 挂机模式 ================= */
-let hang = {queue: [], status: "idle", outDir: "", outDirResolved: "", plan: 0, done: 0, fail: [], logs: []};
-let hangQueue = [];
+let hang = {queue: [], status: "idle", outDir: "", outDirResolved: "", plan: 0, done: 0,
+            remaining: 0, fail: [], logs: [], recentNames: []};
+let hangQueue = [];          // 服务端队列的本地镜像：[{name,prompt,acts,mode}]
+let hangSig = "";
 let hangTimer = null;
 let hangLastStatus = "";
+let doneItems = [];          // 已完成（扫磁盘）
+let donePick = new Map();    // name -> Set(要补做的动作)
+let doneOpen = new Set();    // 展开了「补做」面板的资产
+let viewRoot = "";           // 预览自定义输出目录里的产物
+let hangDoneSig = -1;        // 已入册数量，用来触发「已完成」刷新
 
 function esc(s){
   return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
@@ -1084,7 +1223,8 @@ function renderHangActs(){
   const box = document.getElementById("hangActs");
   if(!box) return;
   const acts = [...selectedActions];
-  box.innerHTML = acts.map(a=>`<span>${esc(a)}</span>`).join("") || `<span style="background:#fdeaea;color:#dc2626">还没选动作</span>`;
+  box.innerHTML = acts.map(a=>`<span>${esc(a)}</span>`).join("")
+    || `<span style="background:#fff7e6;color:#b45309">未选动作 = 每条只出像素图</span>`;
   document.getElementById("hangActCount").textContent = acts.length;
   updateHangMath();
 }
@@ -1092,54 +1232,94 @@ function renderHangActs(){
 function updateHangMath(){
   const el = document.getElementById("hangMath");
   if(!el) return;
-  const n = hangQueue.filter(x=>(x.name||"").trim() && (x.prompt||"").trim()).length;
   const m = selectedActions.size;
-  el.textContent = `有效 ${n} 条 × ${m} 个动作 = ${n*m} 个输出`;
-  el.style.color = (n && m) ? "var(--primary)" : "var(--muted)";
+  let valid = 0, out = 0, pixOnly = 0;
+  hangQueue.forEach(x=>{
+    const hasOwn = x.acts && x.acts.length;
+    const acts = hasOwn ? x.acts.length : m;
+    if((x.name||"").trim() && ((x.prompt||"").trim() || x.mode === "actions")){
+      valid++;
+      if(!hasOwn && !m && x.mode !== "actions"){ pixOnly++; out += 1; }
+      else out += Math.max(1, acts);
+    }
+  });
+  const allPix = valid > 0 && pixOnly === valid;
+  el.textContent = `队列有效 ${valid} 条 · 共 ${out} ` + (allPix ? "张像素图" : "个输出")
+    + (pixOnly && !allPix ? `（其中 ${pixOnly} 条只出像素图）` : "");
+  el.style.color = valid ? "var(--primary)" : "var(--muted)";
 }
 
 function renderHangList(){
   const box = document.getElementById("hangList");
   if(!box) return;
   box.innerHTML = "";
+  const running = hang.status === "running";
+  const badge = document.getElementById("hangQueueN");
+  if(badge) badge.textContent = hangQueue.length + " 条";
   if(!hangQueue.length){
-    box.appendChild(h(`<div class="hang-empty">队列是空的 —— 点「＋ 新增」加一条，或「批量粘贴」一次贴一堆</div>`));
+    box.appendChild(h(`<div class="hang-empty">队列空着 —— 下面填一行点「＋ 加到队尾」，或「批量粘贴」一次贴一堆</div>`));
     updateHangMath();
     return;
   }
   hangQueue.forEach((it, i)=>{
-    const row = h(`<div class="hrow">
-      <div class="no">${i+1}</div>
-      <input class="nm" placeholder="资产名称" value="${esc(it.name)}">
-      <input class="pt" placeholder="提示词，如：像素风骑士，蓝披风，正面站立" value="${esc(it.prompt)}">
-      <button class="hx" title="删除这条">×</button>
+    const busy = running && i === 0;
+    const m = selectedActions.size;
+    const actsText = (it.acts && it.acts.length) ? it.acts.join("，") : "";
+    const pixOnly = it.mode !== "actions" && !(it.acts && it.acts.length) && !m;
+    const acts = (it.acts && it.acts.length) ? it.acts : [...selectedActions];
+    const tag = pixOnly ? "只出像素图"
+      : ((it.acts && it.acts.length) ? "指定 " : (it.mode === "actions" ? "补做 " : "默认 ")) + acts.length;
+    const row = h(`<div class="hrow ${busy?'run':''}">
+      <div class="no">${busy ? "▶" : i+1}</div>
+      <input class="nm" placeholder="资产名称" value="${esc(it.name)}" ${busy?"disabled":""}>
+      <input class="pt" placeholder="图片描述（提示词）" value="${esc(it.prompt)}" ${busy?"disabled":""}>
+      <input class="ha" placeholder="${busy?'正在生成':'动作，逗号分隔；留空=默认'}" value="${esc(actsText)}" ${busy?"disabled":""}
+             title="这条专用的动作序列，例如：站立，行走，攻击；留空则沿用第 2 步的默认动作">
+      <span class="hacts" title="${busy?'正在生成':'这条会用到的动作数'}">${tag}</span>
+      <button class="hx" title="${busy?'正在生成，删不了；要中断点「停止」':'从队列删掉'}">×</button>
     </div>`);
     row.querySelector(".nm").oninput = e=>{ hangQueue[i].name = e.target.value; updateHangMath(); };
     row.querySelector(".pt").oninput = e=>{ hangQueue[i].prompt = e.target.value; updateHangMath(); };
-    row.querySelector(".nm").onblur = persistHangQueue;
-    row.querySelector(".pt").onblur = persistHangQueue;
-    row.querySelector(".hx").onclick = ()=>{
-      hangQueue.splice(i, 1);
-      renderHangList();
-      persistHangQueue();
+    row.querySelector(".nm").onblur = e=> patchRow(i, "name", e.target.value.trim());
+    row.querySelector(".pt").onblur = e=> patchRow(i, "prompt", e.target.value.trim());
+    row.querySelector(".ha").onblur = e=>{
+      const list = e.target.value.split(/[,，、;；|\/\s]+/).map(s=>s.trim()).filter(Boolean);
+      hangQueue[i].acts = list.length ? list : null;
+      patchRow(i, "acts", list);
+      updateHangMath();
     };
+    row.querySelector(".hx").onclick = ()=> removeRow(i);
     box.appendChild(row);
   });
   updateHangMath();
 }
 
-function addHangRow(){
-  // 新行默认接在最后一个资产后面
-  hangQueue.push({name: "", prompt: ""});
-  renderHangList();
-  const box = document.getElementById("hangList");
-  box.scrollTop = box.scrollHeight;
-  const last = box.querySelector(".hrow:last-child .nm");
-  if(last) last.focus();
+async function patchRow(i, field, val){
+  const {ok, data} = await post("/api/hang/queue", {patch: {i, [field]: val}});
+  if(!ok) toast(data.error || "这条改不了", true);
 }
 
-async function persistHangQueue(){
-  await post("/api/hang/queue", {queue: hangQueue});
+async function removeRow(i){
+  const {ok, data} = await post("/api/hang/queue", {remove: i});
+  if(!ok){ toast(data.error || "删不掉", true); return; }
+  await refreshHang(true);
+}
+
+async function quickAdd(){
+  const nameEl = document.getElementById("qaName"), pEl = document.getElementById("qaPrompt"),
+        aEl = document.getElementById("qaActs");
+  const name = nameEl.value.trim(), prompt = pEl.value.trim();
+  if(!name){ toast("资产名称要填一下", true); nameEl.focus(); return; }
+  if(!prompt){ toast("图片描述要填一下；只想补动作请到下面「已完成队列」里选", true); pEl.focus(); return; }
+  const acts = aEl.value.split(/[,，、;；|\/\s]+/).map(s=>s.trim()).filter(Boolean);
+  const {ok, data} = await post("/api/hang/queue", {append: [{name, prompt, acts: acts.length ? acts : null}]});
+  if(!ok){ toast(data.error || "加不进去", true); return; }
+  nameEl.value = ""; pEl.value = ""; aEl.value = "";
+  await refreshHang(true);
+  nameEl.focus();
+  toast(hang.status === "running"
+    ? `已加到队尾：${name}（当前这条跑完接着做）`
+    : `已加到队尾：${name}，点「执行队列」开始`);
 }
 
 function togglePaste(){
@@ -1157,7 +1337,12 @@ function _cleanHangField(s){
     .trim();
 }
 
-/* 解析「【资产名称：AAA。提示词：BBB。】」/「名称：X 提示词：Y」/「X | Y」 */
+/* 解析三元组：【资产名称：AAA。提示词：BBB。动作：站立，行走。】
+   / 「名称：X 描述：Y 动作：A,B」 / 「名称 | 描述 | 动作A,动作B」（动作可省略 = 用默认） */
+function _splitActs(s){
+  return String(s||"").split(/[,，、;；|\/\s]+/).map(x=>x.trim()).filter(Boolean);
+}
+
 function parseHangText(text){
   const out = [];
   let cur = null;
@@ -1165,51 +1350,66 @@ function parseHangText(text){
   for(const raw of String(text || "").split(/\r?\n/)){
     const line = raw.replace(/[【】\[\]]/g, " ").trim();
     if(!line) continue;
-    const mn = line.match(/(?:资产)?名称\s*[:：]\s*([^。;；|]*?)(?=\s*提示词|。|;|；|\||$)/);
-    const mp = line.match(/提示词\s*[:：]\s*(.+)$/);
-    if(mn || mp){
+    const mn = line.match(/(?:资产)?名称\s*[:：]\s*([^。;；|]*?)(?=\s*(?:提示词|描述|动作)\s*[:：]|。|;|；|\||$)/);
+    const mp = line.match(/(?:提示词|描述)\s*[:：]\s*([\s\S]*?)(?=\s*动作\s*[:：]|$)/);
+    const ma = line.match(/动作\s*[:：]\s*([\s\S]*)$/);
+    if(mn || mp || ma){
       if(!cur || (mn && (cur.name||"").trim())) flush();
-      if(!cur) cur = {name: "", prompt: ""};
+      if(!cur) cur = {name: "", prompt: "", acts: null};
       if(mn) cur.name = _cleanHangField(mn[1]);
       if(mp) cur.prompt = _cleanHangField(mp[1]);
+      if(ma){
+        const list = _splitActs(_cleanHangField(ma[1]));
+        cur.acts = list.length ? list : null;
+      }
       if((cur.name||"").trim() && (cur.prompt||"").trim()) flush();
       continue;
     }
     if(line.includes("|") || line.includes("｜")){
       const parts = line.split(/[|｜]/);
       flush();
-      out.push({name: _cleanHangField(parts[0]), prompt: _cleanHangField(parts.slice(1).join("|"))});
+      const item = {name: _cleanHangField(parts[0]), prompt: _cleanHangField(parts[1] || ""), acts: null};
+      if(parts.length > 2){
+        const list = _splitActs(_cleanHangField(parts.slice(2).join("|")));
+        item.acts = list.length ? list : null;
+      }
+      out.push(item);
       continue;
     }
     // 没有标签的纯文本行：补到上一条缺提示词的位置
     if(cur && !(cur.prompt||"").trim()){ cur.prompt = _cleanHangField(line); flush(); }
-    else { flush(); cur = {name: "", prompt: _cleanHangField(line)}; flush(); }
+    else { flush(); cur = {name: "", prompt: _cleanHangField(line), acts: null}; flush(); }
   }
   flush();
   return out;
 }
 
-function importPaste(){
+async function importPaste(){
   const text = document.getElementById("pasteText").value;
   const items = parseHangText(text);
   if(!items.length){ toast("没解析出内容，检查一下格式", true); return; }
-  hangQueue = hangQueue.concat(items);
-  renderHangList();
+  const good = items.filter(x=>(x.name||"").trim() && (x.prompt||"").trim());
+  const bad = items.length - good.length;
+  if(!good.length){ toast("每条都要有名称和提示词", true); return; }
+  const {ok, data} = await post("/api/hang/queue", {append: good});
+  if(!ok){ toast(data.error || "加不进去", true); return; }
   document.getElementById("pasteText").value = "";
   document.getElementById("pasteBox").classList.add("hidden");
-  document.getElementById("pasteTip").textContent = `已加入 ${items.length} 条`;
-  persistHangQueue();
-  const bad = items.filter(x=>!(x.name||"").trim());
-  toast(bad.length ? `已加入 ${items.length} 条，其中 ${bad.length} 条缺名称，补一下` : `已加入 ${items.length} 条`);
+  document.getElementById("pasteTip").textContent = `已加到队尾 ${good.length} 条`;
+  await refreshHang(true);
+  toast(bad ? `已加到队尾 ${good.length} 条，丢掉 ${bad} 条缺名称或提示词的` : `已加到队尾 ${good.length} 条`);
 }
 
 async function clearHangQueue(){
-  if(!confirm("清空整个队列？（已生成的文件不受影响）")) return;
-  hangQueue = [];
-  renderHangList();
-  await post("/api/hang/clear");
-  document.getElementById("hangProg").classList.add("hidden");
-  toast("队列已清空");
+  const running = hang.status === "running";
+  if(!hangQueue.length){ toast("队列本来就空着"); return; }
+  if(!confirm(running
+      ? "清空还没开始的条目？（当前正在跑的这一条会做完才停）"
+      : "清空整个队列？（已生成的文件不受影响）")) return;
+  const {ok, data} = await post("/api/hang/clear");
+  if(!ok){ toast(data.error || "清空失败", true); return; }
+  await refreshHang(true);
+  toast(running ? `已清掉 ${data.dropped|0} 条，当前这条跑完就停` : "队列已清空");
 }
 
 function _dirText(d){
@@ -1231,6 +1431,7 @@ async function pickHangDir(){
   hang.outDir = data.outDir;
   _dirText({outDir: data.outDir, outDirResolved: data.outDir});
   toast("输出目录：" + data.outDir);
+  refreshDone();
 }
 
 async function setHangDir(v){
@@ -1239,12 +1440,14 @@ async function setHangDir(v){
   hang.outDir = (v||"").trim() ? data.outDir : "";
   _dirText({outDir: hang.outDir, outDirResolved: data.outDir});
   toast("输出目录已设为 " + data.outDir);
+  refreshDone();
 }
 
 async function resetHangDir(){
   await post("/api/hang/outdir", {outDir: ""});
   hang.outDir = "";
-  refreshHang();
+  await refreshHang(true);
+  refreshDone();
   toast("已恢复默认输出目录");
 }
 
@@ -1255,26 +1458,40 @@ async function openHangDir(){
 
 async function stopHang(){
   await post("/api/hang/stop");
-  toast("已发送停止请求，当前这一步做完就停");
+  toast("已发送停止：手上这一步做完就停，没跑完的那条留在队头");
 }
 
 async function startHang(){
-  const items = hangQueue.map(x=>({name:(x.name||"").trim(), prompt:(x.prompt||"").trim()}))
-                         .filter(x=>x.name && x.prompt);
-  if(!items.length){ toast("队列为空：每条都要填名称和提示词", true); return; }
-  const empties = hangQueue.length - items.length;
-  if(empties > 0 && !confirm(`有 ${empties} 条缺名称或提示词，会被跳过。继续？`)) return;
-  if(!selectedActions.size){ toast("先在第 2 步选好动作序列", true); return; }
-  if(hang.status === "running"){ toast("队列已经在跑了", true); return; }
+  if(hang.status === "running"){ toast("队列已经在跑了，想加活请用「＋ 加到队尾」", true); return; }
+  if(!hangQueue.length){ toast("队列是空的，先加一条", true); return; }
 
-  const plan = items.length * selectedActions.size;
+  const m = selectedActions.size;
+  let plan = 0, valid = 0, pixOnly = 0;
+  hangQueue.forEach(x=>{
+    const hasOwn = x.acts && x.acts.length;
+    const acts = hasOwn ? x.acts.length : m;
+    if((x.name||"").trim() && ((x.prompt||"").trim() || x.mode === "actions")){
+      valid++;
+      if(!hasOwn && !m && x.mode !== "actions"){ pixOnly++; plan += 1; }
+      else plan += Math.max(1, acts);
+    }
+  });
+  if(!valid){ toast("队列里没有一条填全的（名称 + 提示词）", true); return; }
+
   const outDir = document.getElementById("hangDir").value.trim();
   const target = outDir || hang.outDirResolved || "默认输出目录";
-  const mins = Math.round(plan * 3.2);
-  if(!confirm(`准备挂机：\n\n资产 ${items.length} 个 × 动作 ${selectedActions.size} 个 = ${plan} 个动画\n输出目录：${target}\n预计耗时：约 ${mins} 分钟（每个动作 3~4 分钟）\n\n全程自动，不需要你确认。现在开始？`)) return;
+  const mins = Math.round(plan * (pixOnly === valid ? 0.8 : 3.2));
+  const what = pixOnly === valid ? "张像素图"
+             : (pixOnly ? `个输出（含 ${pixOnly} 张纯像素图）` : "个动画");
+  if(!confirm(`准备挂机：\n\n队列 ${valid} 条，共约 ${plan} ${what}` +
+      (!m ? "\n（第 2 步没选动作：每条只生成角色图 + 像素图，不做动画）" : "") +
+      `\n输出目录：${target}\n预计耗时：约 ${mins} 分钟\n\n跑完一条会自动从队头摘掉 → 进「已完成」；中途可以随时加新的。开始？`)) return;
 
   const body = {
-    queue: items, actions: [...selectedActions], outDir,
+    outDir,
+    queue: hangQueue.map(x=>({name:(x.name||"").trim(), prompt:(x.prompt||"").trim(),
+                              acts: x.acts || null, mode: x.mode || "gen"})),
+    actions: [...selectedActions],
     motion: document.getElementById("motionInput").value,
     duration: parseFloat(document.getElementById("durRange").value),
     pixel: parseInt(document.getElementById("pixRange").value),
@@ -1287,8 +1504,8 @@ async function startHang(){
   document.getElementById("hangProg").classList.remove("hidden");
   document.getElementById("hangLog").innerHTML = "";
   document.getElementById("hangLog").dataset.n = "";
-  toast(`开始挂机：${plan} 个输出`);
-  refreshHang();
+  toast(`开始挂机：${data.queue|0} 条 / ${data.plan|0} 个动画`);
+  await refreshHang(true);
 }
 
 function renderHangProgress(d){
@@ -1296,17 +1513,19 @@ function renderHangProgress(d){
   if(!wrap) return;
   const running = d.status === "running";
   const ended = d.status === "done" || d.status === "cancelled" || d.status === "error";
-  if(running || (d.plan|0) > 0) wrap.classList.remove("hidden");
+  if(running || (d.done|0) > 0 || (d.plan|0) > 0) wrap.classList.remove("hidden");
 
   const pct = running ? (d.percent || 0) : (d.status === "done" ? 100 : (d.percent || 0));
   document.getElementById("hangBar").style.width = pct + "%";
 
   const fails = (d.fail || []).length;
+  const novos = (d.recentNames || []).length;
   document.getElementById("hangMsg").innerHTML =
     `<span class="pct">${pct}%</span>` +
     `<span>${esc(d.message || (running ? "运行中…" : ""))}</span>` +
-    `<span class="tip">已完成 ${d.done|0} / ${d.plan|0} 个动作` +
-    (fails ? ` · <span style="color:var(--err)">${fails} 个资产失败</span>` : "") + `</span>`;
+    `<span class="tip">已完成 ${d.done|0} 个动作 · 队列剩 ${d.remaining|0} 条` +
+    (novos ? ` · 本轮入册 ${novos} 个资产` : "") +
+    (fails ? ` · <span style="color:var(--err)">${fails} 条失败</span>` : "") + `</span>`;
 
   const logs = d.logs || [];
   const box = document.getElementById("hangLog");
@@ -1322,34 +1541,300 @@ function renderHangProgress(d){
   document.getElementById("hangStopBtn").classList.toggle("hidden", !running);
 
   if(ended && hangLastStatus === "running"){
-    refreshAssets();          // 挂机产物已落盘，刷新左侧资产
-    if(d.status === "done" && !fails) toast("挂机完成，全部成功");
-    if(fails) toast(`挂机结束，${fails} 个资产失败（看日志）`, true);
+    refreshAssets();
+    refreshDone();
+    if(d.status === "done" && !fails) toast("队列跑完，到下面「已完成队列」过一眼");
+    if(fails) toast(`队列结束，${fails} 条失败（看日志）`, true);
   }
   hangLastStatus = d.status;
 }
 
-async function refreshHang(){
+async function refreshHang(force){
   const d = await fetch("/api/hang").then(r=>r.json()).catch(()=>null);
   if(!d || d.status === undefined) return;
-  const first = hang.status === undefined || hang.status === "idle";
   hang = d;
   _dirText(d);
   renderHangActs();
-  if(!hangQueue.length && (d.queue || []).length) hangQueue = (d.queue || []).map(x=>({name:x.name, prompt:x.prompt}));
-  if(!document.getElementById("hangList").children.length || first) renderHangList();
+
+  const srv = (d.queue||[]).map(x=>({name:x.name||"", prompt:x.prompt||"", acts:x.acts||null, mode:x.mode||"gen"}));
+  const badge = document.getElementById("hangQueueN");
+  if(badge) badge.textContent = srv.length + " 条";
+  const sig = JSON.stringify(srv);
+  const ae = document.activeElement;
+  const typing = !!(ae && ae.closest && ae.closest("#hangList"));
+  if(force || (!typing && sig !== hangSig)){
+    hangQueue = srv; hangSig = sig; renderHangList();
+  }
   renderHangProgress(d);
+
+  // 每入册一个资产就刷一下「已完成」，跑的时候就能边看边确认
+  const dsig = (d.recentNames || []).length;
+  if(dsig !== hangDoneSig){ hangDoneSig = dsig; refreshDone(); }
 
   if(d.running && !hangTimer) hangTimer = setInterval(refreshHang, 1500);
   if(!d.running && hangTimer){ clearInterval(hangTimer); hangTimer = null; }
+}
+
+/* ---------- 已完成队列（扫输出目录） ---------- */
+async function refreshDone(manual){
+  const root = document.getElementById("hangDir").value.trim() || hang.outDir || "";
+  const r = await fetch(`/api/hang/done?root=${encodeURIComponent(root)}`).then(x=>x.json()).catch(()=>null);
+  if(!r || !r.items){ if(manual) toast("读取已完成列表失败", true); return; }
+  doneItems = r.items;
+  document.getElementById("doneCount").textContent = doneItems.length;
+  renderDone();
+  if(manual) toast(`输出目录里共 ${doneItems.length} 个资产`);
+}
+
+function renderDone(){
+  const box = document.getElementById("doneList");
+  if(!box) return;
+  box.innerHTML = "";
+  if(!doneItems.length){
+    box.appendChild(h(`<div class="hang-empty">还没有跑完的资产 —— 队列跑完一条就会出现在这里</div>`));
+    return;
+  }
+  const qEl = document.getElementById("doneSearch");
+  const q = ((qEl && qEl.value) || "").trim().toLowerCase();
+  const shown = q ? doneItems.filter(it=>
+    (it.name + " " + (it.prompt||"") + " " + (it.actions||[]).map(a=>a.action).join(" ")).toLowerCase().includes(q)
+  ) : doneItems;
+  const cnt = document.getElementById("doneCount");
+  if(cnt) cnt.textContent = q ? `${shown.length}/${doneItems.length}` : String(doneItems.length);
+  if(!shown.length){
+    box.appendChild(h(`<div class="hang-empty">没有匹配「${esc(q)}」的资产</div>`));
+    return;
+  }
+  const root = document.getElementById("hangDir").value.trim() || hang.outDir || "";
+  shown.forEach(it=>{
+    const acts = it.actions || [];
+    const row = h(`<div class="drow">
+      <div class="dthumb">${it.hasChar
+        ? `<img src="/api/char?name=${encodeURIComponent(it.name)}&root=${encodeURIComponent(root)}&v=${it.mtime||0}">`
+        : "🧩"}</div>
+      <div class="dmain">
+        <div class="dtop">
+          <b>${esc(it.name)}</b>
+          ${it.isNew ? '<span class="badge new">本轮新</span>' : ""}
+          <span class="tip">${acts.filter(a=>a.action!=="像素图").length} 个动作</span>
+          <span class="spacer"></span>
+          <button class="btn ghost sm act-redo">＋ 补做动作</button>
+          <button class="btn danger sm del-asset" title="删除整个资产（含角色图、像素图和全部动作）">删除</button>
+        </div>
+        <div class="dacts"></div>
+        <div class="dredo hidden">
+          <div class="tip">勾选要生成的动作（已有动作会被覆盖），加进去排在当前队列后面：</div>
+          <div class="chips" style="margin-top:6px"></div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn ghost sm pick-none">只选未做的</button>
+            <button class="btn primary sm add-redo">加入队列</button>
+            <span class="tip rtip"></span>
+          </div>
+        </div>
+      </div>
+    </div>`);
+
+    const actBox = row.querySelector(".dacts");
+    if(!acts.length) actBox.innerHTML = `<span class="tip">这个资产还没有动作</span>`;
+    acts.forEach(a=>{
+      const b = h(`<button class="dact" title="在播放器里预览">${esc(a.action)}<i>${a.frames}</i><i class="dx" title="删除（连本地文件一起删）">×</i></button>`);
+      b.onclick = e=>{
+        if(e.target.classList.contains("dx")){ deleteDoneAction(it.name, a.action, root); return; }
+        previewDone(it.name, a.action);
+      };
+      actBox.appendChild(b);
+    });
+
+    row.querySelector(".del-asset").onclick = ()=> deleteDoneAsset(it.name, root);
+
+    const redo = row.querySelector(".dredo");
+    if(doneOpen.has(it.name)) redo.classList.remove("hidden");
+    row.querySelector(".act-redo").onclick = ()=> toggleRedo(it.name);
+
+    const chipBox = redo.querySelector(".chips");
+    const picked = donePick.get(it.name) || new Set();
+    allActions.forEach(a=>{
+      const has = acts.some(x=>x.action === a);
+      const c = h(`<button class="chip ${picked.has(a)?"on":""}" title="${has?"硬盘上已有，再生成会覆盖":"还没有"}">${has?'<i class="has-dot"></i>':''}<span>${esc(a)}</span></button>`);
+      c.onclick = ()=> pickAct(it.name, a);
+      chipBox.appendChild(c);
+    });
+    redo.querySelector(".pick-none").onclick = ()=>{
+      const set = new Set();
+      allActions.forEach(a=>{ if(!acts.some(x=>x.action === a)) set.add(a); });
+      donePick.set(it.name, set);
+      renderDone();
+    };
+    redo.querySelector(".add-redo").onclick = ()=> addRedo(it.name);
+    box.appendChild(row);
+  });
+}
+
+function toggleRedo(name){
+  if(doneOpen.has(name)) doneOpen.delete(name); else doneOpen.add(name);
+  renderDone();
+}
+
+function pickAct(name, act){
+  if(!donePick.has(name)) donePick.set(name, new Set());
+  const s = donePick.get(name);
+  if(s.has(act)) s.delete(act); else s.add(act);
+  renderDone();
+}
+
+async function addRedo(name){
+  const pick = donePick.get(name);
+  if(!pick || !pick.size){ toast("先勾几个动作再点加入", true); return; }
+  const n = pick.size;
+  const it = doneItems.find(x=>x.name===name) || {};
+  const {ok, data} = await post("/api/hang/queue", {append: [{
+    name, prompt: it.prompt || "", mode: "actions", acts: [...pick]
+  }]});
+  if(!ok){ toast(data.error || "加不进去", true); return; }
+  donePick.delete(name); doneOpen.delete(name);
+  await refreshHang(true);
+  toast(hang.status === "running"
+    ? `已排到队尾：${name} 补做 ${n} 个动作，当前任务跑完自动接着做`
+    : `已排到队尾：${name} 补做 ${n} 个动作，点「执行队列」开始`);
+}
+
+async function deleteDoneAction(name, action, root){
+  const isPixel = action === "像素图";
+  if(!confirm(`删除「${name}」的「${action}」？\n\n硬盘上的${isPixel ? "像素图" : "像素帧"}会一并移除，不可恢复。`)) return;
+  const {ok, data} = await post("/api/delete", {name, action, root});
+  if(!ok){ toast(data.error || "删除失败", true); return; }
+  if(currentAsset === name && viewRoot){
+    currentAssetActions.delete(action);
+    const it = doneItems.find(x=>x.name===name);
+    const acts = ((it ? it.actions : []) || []).filter(a=>a.action !== action);
+    if(it) it.actions = acts;
+    renderTabs(acts);
+    if(currentAction === action){
+      if(acts.length) await selectAction(acts[acts.length-1].action);
+      else { currentAction = null; document.getElementById("viewCard").classList.add("hidden"); }
+    }
+  }
+  if(currentAsset === name && !viewRoot) await refreshAssets();
+  await refreshDone();
+  toast(`已删除「${action}」（本地文件已移除）`);
+}
+
+async function deleteDoneAsset(name, root){
+  const it = doneItems.find(x=>x.name===name) || {};
+  const n = (it.actions||[]).filter(a=>a.action!=="像素图").length;
+  if(!confirm(`删除整个资产「${name}」？\n\n角色图、像素图和 ${n} 个动作的文件夹会全部移除，不可恢复。`)) return;
+  const {ok, data} = await post("/api/assets/delete", {name, root});
+  if(!ok){ toast(data.error || "删除失败", true); return; }
+  if(currentAsset === name){
+    await newAsset(true);
+  }
+  await refreshAssets();
+  await refreshDone();
+  toast(`已删除资产「${name}」（本地文件夹已移除）`);
+}
+
+async function previewDone(name, action){
+  const it = doneItems.find(x=>x.name===name) || {};
+  viewRoot = document.getElementById("hangDir").value.trim() || hang.outDir || "";
+  currentAsset = name;
+  currentAction = action;
+  currentAssetActions = new Set((it.actions||[]).map(a=>a.action));
+  document.getElementById("viewCard").classList.remove("hidden");
+  renderTabs(it.actions || []);
+  await selectAction(action);
+  document.getElementById("viewHint").textContent =
+    `${name} · ${action}` + (viewRoot ? `（${viewRoot}）` : "");
+  document.getElementById("viewCard").scrollIntoView({behavior:"smooth", block:"center"});
 }
 
 /* ---------- 初始化 ---------- */
 renderChips();
 refreshAll();
 refreshHang();
+refreshDone();
 pollStatus();
+loadEnv();
+setInterval(loadEnv, 60000);
 setInterval(()=>{ if(!pollTimer) pollStatus(); }, 6000);
+
+/* ---------- 档位 / 硬件体检 ---------- */
+let envData = null, envOpen = false;
+
+async function loadEnv(){
+  try{
+    envData = await fetch("/api/env").then(r=>r.json());
+    renderTierPill();
+    if(envOpen) renderEnvPanel();
+    applyTierLimits();
+  }catch(e){ /* 服务没起来时静默 */ }
+}
+
+function renderTierPill(){
+  const el = document.getElementById("tierPill");
+  if(!el || !envData) return;
+  const pr = envData.profile || {};
+  el.textContent = pr.canVideo ? "全量档 · 可出动画" : "极简档 · 只出图片";
+  el.classList.toggle("lite", !pr.canVideo);
+  el.title = pr.canVideo
+    ? "本机模型齐全，点击查看硬件体检"
+    : "当前只装了出图模型，装全量模型后才能出动画。点击查看详情";
+}
+
+function toggleEnv(force){
+  const p = document.getElementById("envPanel");
+  envOpen = force === undefined ? !envOpen : force;
+  p.classList.toggle("hidden", !envOpen);
+  if(envOpen){ renderEnvPanel(); loadEnv(); }
+}
+
+function renderEnvPanel(){
+  const p = document.getElementById("envPanel");
+  if(!envData){ p.innerHTML = `<div class="sub">正在检测…</div>`; return; }
+  const d = envData, g = d.gpu || {}, r = d.recommend || {}, m = d.models || {}, pr = d.profile || {};
+  const vram = g.vram ? `${g.vram} GB 显存` : "显存未知";
+  const modelTxt = m.installed
+    ? `齐全（${m.have_gb} GB）`
+    : (m.have ? `已装 ${m.have} / ${m.have + (m.missing||[]).length}，还差 ${m.missing_gb} GB` : `未安装，需下载 ${m.need_gb} GB`);
+  const rows = [
+    ["系统", d.os || "-"],
+    ["显卡", g.name ? `${g.name}（${vram}）` : "未检测到独显"],
+    ["驱动", g.driver || "-"],
+    ["内存", (d.ram_gb || 0) + " GB"],
+    ["磁盘剩余", (d.disk_free_gb || 0) + " GB"],
+    ["动画模型", pr.canVideo ? "已装，可出动画" : "未装，只能出静态图"],
+    ["模型体积", modelTxt],
+  ];
+  p.innerHTML = `
+    <h4>本机硬件体检</h4>
+    <div class="sub">${esc(r.label || "")}${r.size ? ` · 建议分辨率 ${esc(r.size)}` : ""}</div>
+    ${rows.map(([k, v]) => `<div class="env-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}
+    ${(r.notes || []).map(n => `<div class="env-note warn">${esc(n)}</div>`).join("")}
+    ${!pr.canVideo ? `<div class="env-note"><b>想在本机出动画</b>
+      要再装约 54GB 的动画模型：右键「下载模型.bat」→ 编辑，把 <code>--tier lite</code> 改成 <code>--tier full</code>，
+      或在命令行运行 <code>python download_models.py --tier full</code>。</div>` : ""}
+    ${!pr.canImage ? `<div class="env-note warn"><b>还没装出图模型</b>双击「下载模型.bat」会自动下载。</div>` : ""}
+    <div class="env-note"><b>换台电脑也能用</b>
+      这个界面支持局域网共享：在有显卡的机器上双击「启动服务端(局域网).bat」，
+      其他设备（包括没有独显的笔记本、平板、手机）打开它显示的地址即可使用。</div>
+    <div class="env-acts">
+      <button class="btn ghost sm" onclick="toggleEnv(false)">关闭</button>
+      <button class="btn ghost sm" onclick="loadEnv()">重新检测</button>
+    </div>`;
+}
+
+/* 极简档：隐藏做不了的入口，避免点了才报错 */
+function applyTierLimits(){
+  const pr = (envData && envData.profile) || {};
+  const canVideo = pr.canVideo !== false;   // 未知时先都放开
+  document.querySelectorAll("[data-need-video]").forEach(el=>{
+    el.classList.toggle("hidden", !canVideo);
+  });
+  const tip = document.getElementById("liteBanner");
+  if(tip){
+    tip.classList.toggle("hidden", canVideo);
+    tip.textContent = "当前是极简档：只装了出图模型，生成动作/挂机出动画都不可用。装上全量模型即可解锁。";
+  }
+}
 
 // 支持 ?asset=名字 深链：打开页面自动载入该资产（方便收藏/分享某个角色）
 const _want = new URLSearchParams(location.search).get("asset");

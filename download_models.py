@@ -201,7 +201,7 @@ def check_sha(path, expect):
     return h.hexdigest().lower() == (expect or "").lower()
 
 
-def print_table(items, dest):
+def print_table(items, dest, all_required=False):
     print(f"\n{'':<3}{'文件':<68}{'大小':>9}  状态")
     print("-" * 94)
     missing = 0
@@ -211,14 +211,47 @@ def print_table(items, dest):
         st, got = state_of(p, int(it["size"]))
         tag = {"ok": "已就绪", "close": "已就绪(大小略有差异)", "missing": "缺失",
                "partial": f"不完整 {human(got)}", "toobig": "大小异常"}[st]
-        if it.get("required", True):
+        req = all_required or it.get("required", True)
+        if req:
             need += int(it["size"])
             if st not in ("ok", "close"):
                 missing += 1
-        print(f"{'*' if it.get('required', True) else ' '}  {it['target']:<68}{human(it['size']):>9}  {tag}")
+        print(f"{'*' if req else ' '}  {it['target']:<68}{human(it['size']):>9}  {tag}")
     print("-" * 94)
     print(f"必需文件合计 {human(need)}，当前缺 {missing} 个\n")
     return missing
+
+
+def _vram_gb():
+    """粗查显存，供 --tier auto 判断档位"""
+    try:
+        import subprocess
+        out = subprocess.run(["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+                             capture_output=True, timeout=12).stdout.decode("utf-8", "ignore")
+        first = [x for x in out.strip().splitlines() if x.strip()]
+        if first:
+            return round(float(first[0].strip()) / 1024, 1)
+    except Exception:
+        pass
+    return 0
+
+
+def pick_tier(man, want):
+    """返回 (档位名, 文件列表)。auto 时按显存判断"""
+    tiers = man.get("tiers") or {}
+    if not tiers:
+        return "full", [i for i in man.get("files", []) if i.get("required", True)]
+    if want == "auto":
+        vram = _vram_gb()
+        want = "full" if vram >= 8 else "lite"
+        print(f"[自动] 检测到显存 {vram}GB -> 选择「{tiers.get(want, {}).get('label', want)}」")
+    conf = tiers.get(want)
+    if not conf:
+        print(f"[错误] 清单里没有档位 {want}")
+        return want, []
+    targets = set(conf.get("targets") or [])
+    items = [i for i in man.get("files", []) if i["target"] in targets]
+    return want, items
 
 
 def main():
@@ -228,6 +261,8 @@ def main():
     ap.add_argument("--list", action="store_true", help="列出清单与状态后退出")
     ap.add_argument("--only", action="append", default=[], help="只处理包含该关键字的文件（可多次）")
     ap.add_argument("--all", action="store_true", help="连可选文件（音频 VAE）一起下")
+    ap.add_argument("--tier", choices=["auto", "lite", "full"], default="auto",
+                    help="lite=只出图约15GB；full=含动画约69GB；auto=按显存自动选（默认）")
     ap.add_argument("--sha", action="store_true", help="下载后做 SHA256 校验")
     ap.add_argument("--mirror", choices=["auto", "hf-mirror", "huggingface"],
                     default="auto", help="下载源，默认 auto（镜像优先，失败退回官网）")
@@ -245,11 +280,16 @@ def main():
     else:
         mirrors = [m.get("huggingface", "https://huggingface.co")]
 
-    items = man.get("files", [])
-    if not a.all:
-        items_required = [i for i in items if i.get("required", True)]
-    else:
-        items_required = items
+    tier, items_required = pick_tier(man, a.tier)
+    conf = (man.get("tiers") or {}).get(tier) or {}
+    if conf:
+        print(f"档位：{conf.get('label', tier)}（{human(conf.get('bytes', 0))}）")
+        if conf.get("note"):
+            print(f"      {conf['note']}")
+    if a.all:
+        extra = [i for i in man.get("files", []) if not i.get("required", True)]
+        have = {i["target"] for i in items_required}
+        items_required = items_required + [i for i in extra if i["target"] not in have]
     if a.only:
         items_required = [i for i in items_required if any(k.lower() in i["target"].lower() for k in a.only)]
 
@@ -257,7 +297,7 @@ def main():
     print(f"模型目录：{dest}")
     print(f"下载源：{', '.join(mirrors)}")
 
-    missing = print_table(items_required, dest)
+    missing = print_table(items_required, dest, all_required=not a.all)
     if a.check or a.list:
         return 1 if missing else 0
     if not items_required:
@@ -278,7 +318,7 @@ def main():
         if not download_one(it, dest, mirrors, verify_sha=a.sha):
             ok = False
 
-    print_table(items_required, dest)
+    print_table(items_required, dest, all_required=not a.all)
     if ok:
         print("全部就绪。下一步：python MyPixelTool/setup_models.py  （把 models/ 联接进 ComfyUI）")
     else:

@@ -2,6 +2,7 @@
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 title Pixel Sprite Studio - one click install
+chcp 65001 >nul 2>&1
 
 where python >nul 2>nul
 if errorlevel 1 goto nopy
@@ -11,34 +12,51 @@ if errorlevel 1 goto oldpy
 echo ============================================================
 echo   Pixel Sprite Studio - one click install
 echo ============================================================
-echo   [1] clone ComfyUI v0.42.0 + install pixel_memory node
-echo   [2] install python deps (CUDA torch + ComfyUI requirements)
-echo   [3] download models  (about 64 GB, resumable)
-echo   [4] link models into ComfyUI
+echo   [1] check this PC (what it can run)
+echo   [2] clone ComfyUI v0.42.0 + install pixel_memory node
+echo   [3] install python deps (CUDA torch + ComfyUI requirements)
+echo   [4] download models by tier (resumable)
+echo   [5] link models into ComfyUI
 echo ============================================================
 echo.
-echo  Requires: NVIDIA GPU with 8GB+ VRAM, driver for CUDA 12.8+
-echo  Free disk: about 80 GB
-echo.
-set "GO=Y"
-set /p GO=Download models now (about 64 GB)? [Y/n]:
-echo.
-if /i "%GO%"=="n" goto nodl
 
-python install.py --install-torch --download-models --link-models
-goto finish
-
-:nodl
-python install.py --install-torch --link-models
+echo ------------------------------------------------------------
+echo   Step 1: hardware check
+echo ------------------------------------------------------------
+python -s "MyPixelTool\check_env.py"
 echo.
-echo Skipped model download. Run download_models.bat later to get them.
 
-:finish
+echo ------------------------------------------------------------
+echo   Step 2: choose model set
+echo ------------------------------------------------------------
+echo   [1] lite  about 15 GB   static pixel images only  (4-6 GB VRAM)
+echo   [2] full  about 69 GB   images + animations       (8 GB+ VRAM)
+echo   [3] auto  decide by my GPU (recommended)
+echo.
+echo   You can add the other set later by running download_models.bat again.
+echo.
+choice /c 123 /n /m "Your choice [1/2/3]: "
+if errorlevel 3 set "TIER=auto"
+if errorlevel 2 if not errorlevel 3 set "TIER=full"
+if errorlevel 1 if not errorlevel 2 set "TIER=lite"
+echo.
+echo Selected: %TIER%
+echo.
+echo ------------------------------------------------------------
+echo   Step 3: install (this takes a while, keep the window open)
+echo ------------------------------------------------------------
+echo.
+
+python install.py --install-torch --download-models --link-models --tier %TIER%
+set "RC=%errorlevel%"
+
 echo.
 echo ============================================================
-if errorlevel 1 echo [WARN] something failed, see messages above
-echo  Done. Next: double click  Start-WebUI.bat
-echo  Then open http://127.0.0.1:8899
+if not "%RC%"=="0" echo  [WARN] something failed, see messages above.
+echo  Done. Next:
+echo    - local use : MyPixelTool folder, the "start web UI" bat file
+echo    - share LAN : MyPixelTool folder, the "LAN server" bat file
+echo  Then open  http://127.0.0.1:8899
 echo ============================================================
 echo.
 pause

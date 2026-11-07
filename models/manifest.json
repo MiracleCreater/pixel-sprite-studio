@@ -93,6 +93,57 @@
       "label": "音频 VAE · 本工具不生成音频，可不装",
       "license": "见上游仓库 LICENSE",
       "required": false
+    },
+    {
+      "target": "diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
+      "size": 7256787829,
+      "repo": "Comfy-Org/Qwen-Image-2.1",
+      "path": "diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
+      "label": "文生图主模型 · Turbo int8（极简档，省 7GB 显存）",
+      "license": "Apache-2.0",
+      "required": false,
+      "tiers": [
+        "lite"
+      ]
+    },
+    {
+      "target": "text_encoders/qwen3vl_8b_w4a8.safetensors",
+      "size": 6312105364,
+      "repo": "Comfy-Org/Qwen-Image-2.1",
+      "path": "text_encoders/qwen3vl_8b_w4a8.safetensors",
+      "label": "文生图文本编码器 · 8B w4a8（极简档，省 4GB 内存）",
+      "license": "Apache-2.0",
+      "required": false,
+      "tiers": [
+        "lite"
+      ]
     }
-  ]
+  ],
+  "tiers": {
+    "lite": {
+      "label": "极简档 · 只出静态像素图",
+      "targets": [
+        "diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
+        "text_encoders/qwen3vl_8b_w4a8.safetensors",
+        "vae/qwen_image_2.1_vae_bf16.safetensors",
+        "background_removal/rmbg2.0.safetensors"
+      ],
+      "note": "4~6GB 显存可跑，下载约 15GB。不装视频模型，做不了动画。",
+      "bytes": 15129281737
+    },
+    "full": {
+      "label": "全量档 · 出图 + 出动画",
+      "targets": [
+        "diffusion_models/qwen_image_2.1_turbo_bf16.safetensors",
+        "diffusion_models/fastvideo_fasth3_8step_v2_pruned_int8_convrot.safetensors",
+        "text_encoders/qwen3vl_8b_fp8_scaled.safetensors",
+        "text_encoders/qwen3vl_32b_minimax_h3_int4_convrot.safetensors",
+        "vae/qwen_image_2.1_vae_bf16.safetensors",
+        "vae/minimax_h3_video_vae_fp16.safetensors",
+        "background_removal/rmbg2.0.safetensors"
+      ],
+      "note": "8GB 显存起，下载约 69GB。",
+      "bytes": 68668000488
+    }
+  }
 }

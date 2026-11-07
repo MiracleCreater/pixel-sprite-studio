@@ -21,9 +21,11 @@ ITEMS = [
     ("MyPixelTool", {"输出", "__pycache__", "输出zip"}),
     ("ComfyUI", {"models", "output", "temp", "input", "user", "__pycache__",
                  "tests", ".git", "custom_nodes\\__pycache__"}),
+    ("download_models.py", set()),      # 单文件：对方可以直接下载模型
+    ("models", set()),                  # 只带 manifest.json（下面按扩展名跳过权重）
 ]
 
-SKIP_EXT = {".pyc", ".pyo", ".log"}
+SKIP_EXT = {".pyc", ".pyo", ".log", ".safetensors", ".gguf", ".part", ".ckpt", ".bin"}
 
 README = """像素动画工坊 · 分享包
 =====================================================
@@ -49,24 +51,32 @@ README = """像素动画工坊 · 分享包
      「comfyui内置环境包」放在根目录；或
    · 自己装 Python 3.11 + PyTorch(CUDA)，把该环境目录命名为 comfyui内置环境包。
 
-3. 准备模型，按下面结构放进根目录 models\\：
-       models\\diffusion_models\\   文生图主模型（Qwen-Image）
-       models\\text_encoders\\      文本编码器
-       models\\vae\\                视频/图像 VAE
-       models\\loras\\              可选
-       models\\background_removal\\ 抠图模型（RMBG 2.0）
-   具体文件名见 MyPixelTool\\pipeline.py 顶部常量（VAE_VIDEO、RMBG 等）。
+3. 准备模型（本包已附带 download_models.py 与 models\\manifest.json）
+   双击根目录「下载模型.bat」，它会问你要哪一档：
+       [1] lite  约 15 GB   只出静态像素图（4~6GB 显存就够）
+       [2] full  约 69 GB   出图 + 出动画（需要 8GB 显存）
+       [3] auto  按显卡自动选
+   也可以手动把权重按目录放进 models\\（diffusion_models / text_encoders / vae / background_removal）
 
-4. 双击 MyPixelTool\\初始化模型目录.bat
+4. 双击 MyPixelTool\\硬件检测.bat   ← 先看这台机器到底适合哪档，别下错
+
+5. 双击 MyPixelTool\\初始化模型目录.bat
    （自动把 models\\ 里的目录「联接」进 ComfyUI\\models，不复制、不占双份空间）
 
-5. 双击 MyPixelTool\\启动网页界面.bat
+6. 双击 MyPixelTool\\启动网页界面.bat
    浏览器打开 http://127.0.0.1:8899 即可使用。
+
+   如果这台机器没有独显、或显卡带不动动画：
+   在有显卡的电脑上双击 MyPixelTool\\启动服务端(局域网).bat，
+   窗口会打印一行 http://192.168.x.x:8899 —— 把这行发给对方，
+   对方用浏览器（手机/平板/核显本都行）打开就能用全部功能，什么都不用装。
 
 -----------------------------------------------------
 注意
 -----------------------------------------------------
-· 显卡建议 NVIDIA 8GB 显存以上，驱动需支持 CUDA 12.8+（cu130 环境包要 580+ 驱动）
+· 出动画建议 NVIDIA 8GB 显存以上 + 32GB 内存；驱动 cu130 需 580+
+· 极简档（只出图）4~6GB 显存即可，但做不了动画
+· 纯 CPU / 核显跑动画慢到不可用，这不是配置问题，是算力上限
 · 首次启动 ComfyUI 需要 30~60 秒，状态栏变绿「ComfyUI 运行中」即可生成
 · 生成结果默认只存在内存，点「接受并保存」才写入 MyPixelTool\\输出\\
 """
@@ -93,6 +103,11 @@ def main():
 
         for item, skip_names in ITEMS:
             src_root = os.path.join(ROOT, item)
+            if os.path.isfile(src_root):
+                zf.write(src_root, item)
+                total += os.path.getsize(src_root)
+                file_count += 1
+                continue
             if not os.path.isdir(src_root):
                 print(f"[警告] 缺少目录 {item}，已跳过")
                 continue
