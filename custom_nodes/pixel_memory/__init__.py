@@ -12,6 +12,7 @@ PixelSmith 内存暂存节点（MyPixelTool 配套）
   POST /pixelmem/drop?key=K          -> 主动释放
 """
 import io
+import json
 import threading
 import time
 import uuid
@@ -275,4 +276,37 @@ async def _api_drop(request):
 @routes.get("/pixelmem/stats")
 async def _api_stats(request):
     with _LOCK:
+        _purge_locked()          # 顺手清一遍过期条目，stats 才能反映真实占用
         return web.json_response({"keys": len(_STORE), "bytes": _TOTAL})
+
+
+@routes.get("/pixelmem/list")
+async def _api_list(request):
+    """列出内存池里每一块是谁：key / 类型 / 帧数 / 字节 / 多久没动了"""
+    now = time.time()
+    with _LOCK:
+        _purge_locked()
+        items = [{"key": k, "kind": v["kind"], "count": len(v["items"]),
+                  "bytes": v["size"], "age": int(now - v["ts"])}
+                 for k, v in sorted(_STORE.items(), key=lambda kv: -kv[1]["size"])]
+        return web.json_response({"keys": len(_STORE), "bytes": _TOTAL, "items": items})
+
+
+@routes.post("/pixelmem/clear")
+async def _api_clear(request):
+    """清空内存池；body 可传 {"keep": ["key1"]} 保留指定 key（比如当前角色图）"""
+    global _TOTAL
+    keep = set()
+    try:
+        body = json.loads((await request.read()).decode("utf-8") or "{}")
+        keep = set(body.get("keep") or [])
+    except Exception:
+        pass
+    dropped, freed = 0, 0
+    with _LOCK:
+        for k in [k for k in _STORE if k not in keep]:
+            dropped += 1
+            freed += _STORE[k]["size"]
+            del _STORE[k]
+        _TOTAL = sum(v["size"] for v in _STORE.values())
+    return web.json_response({"ok": True, "dropped": dropped, "freed": freed})

@@ -299,9 +299,11 @@
   <div class="spacer"></div>
   <div class="pill"><span class="dot" id="comfyDot"></span><span id="comfyText">ComfyUI 检测中…</span></div>
   <button class="pill tier" id="tierPill" onclick="toggleEnv()" title="点击查看本机硬件与档位">档位检测中…</button>
+  <button class="pill tier" id="memPill" onclick="toggleMem()" title="内存池占用：点开看是谁占的，可一键释放">内存…</button>
   <button class="btn ghost sm" onclick="location.href='/wizard'" title="第一次用？跟着向导一步步检查环境">新手引导</button>
   <button class="btn ghost sm" onclick="refreshAll()">刷新</button>
 </header>
+<div class="env-panel hidden" id="memPanel"></div>
 
 <div class="env-panel hidden" id="envPanel"></div>
 
@@ -858,7 +860,7 @@ function startPolling(){
   pollTimer = setInterval(pollStatus, 900);
   pollStatus();
 }
-const STAGES = ["文生图","图生视频","去背景","像素化"];
+const STAGES = ["文生图","图生视频","去背景","像素化","抽帧"];
 function paintSteps(stage, mode){
   const list = [...document.querySelectorAll("#stepBar .step")];
   const idx = STAGES.indexOf(stage);
@@ -878,10 +880,20 @@ async function pollStatus(){
   dot.className = "dot " + (d.comfy ? "ok" : "err");
   txt.textContent = d.comfy ? (d.memReady ? "ComfyUI 运行中" : "ComfyUI 版本过旧，请重启") : "ComfyUI 未启动（生成时自动启动）";
 
+  // 顶部内存徽标顺手刷一下
+  fetch("/api/mem").then(r=>r.json()).then(md=>{
+    const pill = document.getElementById("memPill");
+    if(pill && md && md.stats) pill.textContent = "内存 " + fmtMB(md.stats.bytes);
+  }).catch(()=>{});
+
   const j = d.job;
   if(!j) return;
   if(j.status === "running"){
     document.getElementById("progCard").classList.remove("hidden");
+    // 就算中途刷新过页面，取消按钮也得在——不然任务卡住时用户没手可下
+    document.getElementById("cancelBtn").classList.remove("hidden");
+    document.getElementById("goBtn").disabled = true;
+    document.getElementById("genCandBtn").disabled = true;
     document.getElementById("barFill").style.width = j.percent + "%";
     document.getElementById("progPct").textContent = j.percent + "%";
     document.getElementById("progMsg").textContent = j.message || "";
@@ -1832,6 +1844,53 @@ function toggleEnv(force){
   envOpen = force === undefined ? !envOpen : force;
   p.classList.toggle("hidden", !envOpen);
   if(envOpen){ renderEnvPanel(); loadEnv(); }
+}
+
+/* ---------- 内存暂存池 ---------- */
+let memOpen = false;
+function fmtMB(b){
+  b = b || 0;
+  return b >= 1073741824 ? (b/1073741824).toFixed(2)+" GB"
+       : b >= 1048576 ? (b/1048576).toFixed(1)+" MB"
+       : Math.max(0, Math.round(b/1024))+" KB";
+}
+function toggleMem(force){
+  memOpen = force === undefined ? !memOpen : force;
+  document.getElementById("memPanel").classList.toggle("hidden", !memOpen);
+  if(memOpen) renderMemPanel();
+}
+async function renderMemPanel(){
+  const d = await fetch("/api/mem").then(r=>r.json()).catch(()=>null);
+  if(!d) return;
+  const panel = document.getElementById("memPanel");
+  const items = d.items || [];
+  const pill = document.getElementById("memPill");
+  if(pill && d.stats) pill.textContent = "内存 " + fmtMB(d.stats.bytes);
+  let html = `<h4>内存暂存池</h4>
+    <div class="sub">生成过程的中间结果都暂存在这里（不占硬盘），接受落盘或丢弃后归还。
+    取消/出错的任务残留也会躺在这里——下面能直接看到是谁占的。</div>
+    <div class="env-row"><span>总占用</span><span><b>${fmtMB(d.stats.bytes)}</b> · ${d.stats.keys} 项</span></div>`;
+  if(!items.length){
+    html += `<div class="env-note">现在是空的，没有东西占内存。</div>`;
+  } else {
+    html += items.map(it=>{
+      const age = it.age >= 90 ? Math.round(it.age/60)+" 分钟前更新" : it.age+" 秒前更新";
+      const kindName = {image:"图像", mask:"遮罩"}[it.kind] || it.kind;
+      return `<div class="env-row"><span>${it.who}${it.current ? "（当前角色图）" : ""}
+        <br><small style="color:var(--muted)">${kindName} · ${it.count} 帧/张 · ${age}</small></span>
+        <span>${fmtMB(it.bytes)}</span></div>`;
+    }).join("");
+  }
+  html += `<div class="env-acts">
+    <button class="btn danger sm" onclick="clearMem()">释放全部（保留当前角色图）</button>
+    <button class="btn ghost sm" onclick="renderMemPanel()">刷新</button></div>`;
+  panel.innerHTML = html;
+}
+async function clearMem(){
+  if(!confirm("把内存池里除当前角色图以外的内容全部释放？")) return;
+  const {ok, data} = await post("/api/mem/clear", {});
+  toast(ok ? `已释放 ${fmtMB(data.freed)}` : (data && data.error || "释放失败"), !ok);
+  renderMemPanel();
 }
 
 function renderEnvPanel(){

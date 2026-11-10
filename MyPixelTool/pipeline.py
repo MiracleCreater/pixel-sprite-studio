@@ -207,6 +207,30 @@ def mem_drop(key):
         pass
 
 
+def mem_stats():
+    """内存池总占用（bytes / keys）；查不到就返回 0"""
+    try:
+        return http_json("/pixelmem/stats", timeout=15)
+    except Exception:
+        return {"keys": 0, "bytes": 0}
+
+
+def mem_list():
+    """内存池明细：[{key,kind,count,bytes,age}]；查不到返回空表"""
+    try:
+        return http_json("/pixelmem/list", timeout=15).get("items") or []
+    except Exception:
+        return []
+
+
+def mem_clear(keep=()):
+    """清空内存池（可保留指定 key，比如当前角色图），返回 {dropped, freed}"""
+    try:
+        return http_json("/pixelmem/clear", {"keep": list(keep)}, timeout=30)
+    except Exception:
+        return {"dropped": 0, "freed": 0}
+
+
 def server_alive():
     try:
         http_json("/system_stats", timeout=5)
@@ -659,19 +683,25 @@ def generate_candidates(params, count, emit=_noop, is_cancelled=None):
     count = max(1, min(12, int(count)))
 
     out = []
-    for i in range(count):
-        if is_cancelled and is_cancelled():
-            raise RuntimeError("已取消")
-        base = int(97 * i / count)
-        span = max(2, int(97 / count))
-        key = new_key("cand_")
-        seed = random.randint(0, 2 ** 48)
-        emit("文生图", f"候选图 {i+1}/{count} 生成中…", base)
-        queue_workflow(build_t2i(prompt, w, h, steps, seed, key),
-                       f"文生图 {i+1}/{count}", emit, base, span, is_cancelled)
-        png = mem_get(key, 0)
-        out.append({"key": key, "png": png, "seed": seed})
-        emit("文生图", f"候选图 {i+1}/{count} 完成", base + span)
+    try:
+        for i in range(count):
+            if is_cancelled and is_cancelled():
+                raise RuntimeError("已取消")
+            base = int(97 * i / count)
+            span = max(2, int(97 / count))
+            key = new_key("cand_")
+            seed = random.randint(0, 2 ** 48)
+            emit("文生图", f"候选图 {i+1}/{count} 生成中…", base)
+            queue_workflow(build_t2i(prompt, w, h, steps, seed, key),
+                           f"文生图 {i+1}/{count}", emit, base, span, is_cancelled)
+            png = mem_get(key, 0)
+            out.append({"key": key, "png": png, "seed": seed})
+            emit("文生图", f"候选图 {i+1}/{count} 完成", base + span)
+    except Exception:
+        # 半途失败/取消：已经生成的候选图也要归还内存池，不能白占
+        for it in out:
+            mem_drop(it["key"])
+        raise
     emit("完成", f"已生成 {len(out)} 张候选图（还在内存里，未落盘）", 100)
     return out
 
@@ -709,69 +739,72 @@ def render_actions(params, char_key, actions, emit=_noop, is_cancelled=None):
         motion = motion_tpl.replace("{动作}", action)
 
         vid_key = new_key("vid_")
-        emit("图生视频", f"【{action}】生成视频（{idx+1}/{total}）", base)
-        queue_workflow(build_i2v(motion, vw, vh, length, random.randint(0, 2 ** 48), char_key, vid_key),
-                       "图生视频", emit, base, int(span * 0.72), is_cancelled)
-
-        meta = mem_meta(vid_key)
-        n = int(meta.get("count") or 0)
-        if n <= 0:
-            raise RuntimeError("视频生成后内存中没有帧数据")
-
         mask_key = new_key("mask_")
-        emit("去背景", f"【{action}】抠图中…（{n} 帧，分 {(n + RMBG_CHUNK - 1) // RMBG_CHUNK} 块）", base + int(span * 0.74))
-        free_vram()          # 先把视频模型从显存卸载，否则 RMBG 抢不到空间
-        chunk = RMBG_CHUNK
-        off = 0
-        while off < n:
-            if is_cancelled and is_cancelled():
-                raise RuntimeError("已取消")
-            take = min(chunk, n - off)
-            try:
-                queue_workflow(build_rmbg(vid_key, mask_key, offset=off, limit=take, append=(off > 0)),
-                               "去背景", emit,
-                               base + int(span * 0.74),
-                               max(2, int(span * 0.18 * take / max(1, n))),
-                               is_cancelled)
-            except RuntimeError as e:
-                if "memory" in str(e).lower() and chunk > RMBG_MIN_CHUNK:
-                    chunk = max(RMBG_MIN_CHUNK, chunk // 2)
-                    emit("去背景", f"显存不足，改为每块 {chunk} 帧重试…", base + int(span * 0.74))
-                    free_vram()
-                    continue
-                raise
-            off += take
+        try:
+            emit("图生视频", f"【{action}】生成视频（{idx+1}/{total}）", base)
+            queue_workflow(build_i2v(motion, vw, vh, length, random.randint(0, 2 ** 48), char_key, vid_key),
+                           "图生视频", emit, base, int(span * 0.72), is_cancelled)
 
-        mmeta = mem_meta(mask_key)
-        m = min(n, int(mmeta.get("count") or 0))
-        if m <= 0:
-            raise RuntimeError("去背景没有返回遮罩")
+            meta = mem_meta(vid_key)
+            n = int(meta.get("count") or 0)
+            if n <= 0:
+                raise RuntimeError("视频生成后内存中没有帧数据")
 
-        frames = []
-        stage = "像素化" if pixelize else "抽帧"
-        for i in range(m):
-            if is_cancelled and is_cancelled():
-                raise RuntimeError("已取消")
-            fbytes = mem_get(vid_key, i)
-            mask_bytes = mem_get(mask_key, i)
-            if pixelize:
-                frames.append(pixelize_bytes(fbytes, mask_bytes, pixel))
-            else:
-                frames.append(matte_bytes(fbytes, mask_bytes))
-            if i % 6 == 0:
-                emit(stage, f"【{action}】处理帧 {i+1}/{m}",
-                     base + int(span * (0.92 + 0.07 * i / max(1, m))))
+            emit("去背景", f"【{action}】抠图中…（{n} 帧，分 {(n + RMBG_CHUNK - 1) // RMBG_CHUNK} 块）", base + int(span * 0.74))
+            free_vram()          # 先把视频模型从显存卸载，否则 RMBG 抢不到空间
+            chunk = RMBG_CHUNK
+            off = 0
+            while off < n:
+                if is_cancelled and is_cancelled():
+                    raise RuntimeError("已取消")
+                take = min(chunk, n - off)
+                try:
+                    queue_workflow(build_rmbg(vid_key, mask_key, offset=off, limit=take, append=(off > 0)),
+                                   "去背景", emit,
+                                   base + int(span * 0.74),
+                                   max(2, int(span * 0.18 * take / max(1, n))),
+                                   is_cancelled)
+                except RuntimeError as e:
+                    if "memory" in str(e).lower() and chunk > RMBG_MIN_CHUNK:
+                        chunk = max(RMBG_MIN_CHUNK, chunk // 2)
+                        emit("去背景", f"显存不足，改为每块 {chunk} 帧重试…", base + int(span * 0.74))
+                        free_vram()
+                        continue
+                    raise
+                off += take
 
-        video_bytes = None
-        if keep_video:
-            try:
-                raw = [mem_get(vid_key, i) for i in range(n)]
-                video_bytes = encode_mp4(raw, fps=24)
-            except Exception as e:
-                emit("提示", f"视频编码跳过：{e}", base + span - 1)
+            mmeta = mem_meta(mask_key)
+            m = min(n, int(mmeta.get("count") or 0))
+            if m <= 0:
+                raise RuntimeError("去背景没有返回遮罩")
 
-        mem_drop(vid_key)
-        mem_drop(mask_key)
+            frames = []
+            stage = "像素化" if pixelize else "抽帧"
+            for i in range(m):
+                if is_cancelled and is_cancelled():
+                    raise RuntimeError("已取消")
+                fbytes = mem_get(vid_key, i)
+                mask_bytes = mem_get(mask_key, i)
+                if pixelize:
+                    frames.append(pixelize_bytes(fbytes, mask_bytes, pixel))
+                else:
+                    frames.append(matte_bytes(fbytes, mask_bytes))
+                if i % 6 == 0:
+                    emit(stage, f"【{action}】处理帧 {i+1}/{m}",
+                         base + int(span * (0.92 + 0.07 * i / max(1, m))))
+
+            video_bytes = None
+            if keep_video:
+                try:
+                    raw = [mem_get(vid_key, i) for i in range(n)]
+                    video_bytes = encode_mp4(raw, fps=24)
+                except Exception as e:
+                    emit("提示", f"视频编码跳过：{e}", base + span - 1)
+        finally:
+            # 无论成功、失败还是取消，视频帧和遮罩都必须归还内存池，
+            # 否则一次中断就白占几百 MB（这就是“内存一直被占”的元凶）
+            mem_drop(vid_key)
+            mem_drop(mask_key)
 
         # 只留第一帧的预览图给前端做缩略图，其余保持原始字节
         preview = frames[0] if frames else b""
@@ -812,9 +845,11 @@ def run_pipeline(params, emit=_noop, is_cancelled=None):
             save_char_image(name, cands[0]["png"])
 
     results = render_actions(params, char_key, actions, emit, is_cancelled)
-    for r in results:
-        save_action(name, r["action"], r["frames"], r["pixel"], r["duration"], r.get("video"))
-    mem_drop(char_key)
+    try:
+        for r in results:
+            save_action(name, r["action"], r["frames"], r["pixel"], r["duration"], r.get("video"))
+    finally:
+        mem_drop(char_key)
     emit("完成", "全部动作完成", 100)
     return {"name": name, "dir": os.path.join(OUT_ROOT, name), "actions": actions}
 

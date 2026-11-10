@@ -99,6 +99,14 @@ def _emit(stage, msg, percent=0):
             del _job["logs"][:100]
 
 
+def _set_char(key, png, label, asset=""):
+    """替换当前角色图；旧 key 立刻归还内存池，否则换几张图就悄悄占掉几百 MB"""
+    old = _char.get("key")
+    _char.update({"key": key, "png": png, "label": label, "asset": asset})
+    if old and old != key:
+        pl.mem_drop(old)
+
+
 def _ensure_char_key():
     """角色图在内存里的 key 可能因 ComfyUI 重启失效，这里做自愈重传"""
     key, png = _char.get("key"), _char.get("png")
@@ -125,7 +133,9 @@ def _run_candidates(params, count):
                 ids.append(cid)
             while len(_cand_order) > MAX_CANDS:
                 old = _cand_order.pop(0)
-                _cands.pop(old, None)
+                old_item = _cands.pop(old, None)
+                if old_item and old_item.get("key"):
+                    pl.mem_drop(old_item["key"])   # 被挤掉的候选图要归还内存池
             _job.update({"status": "done", "percent": 100, "stage": "完成",
                          "message": f"已生成 {len(ids)} 张候选图（未落盘）", "result": {"cids": ids}})
     except Exception as e:
@@ -215,7 +225,7 @@ def use_asset_char(name):
         print("角色图暂存内存池失败（生成时会自动重试）：", e)
     with _lock:
         _selected_cid = None
-        _char.update({"key": key, "png": png, "label": name, "asset": name})
+        _set_char(key, png, name, name)
     return True
 
 
@@ -799,6 +809,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {"comfy": pl.server_alive(), "memReady": pl.mem_nodes_ready(),
                                     "job": job, "profile": pl.model_profile()})
 
+        if path == "/api/mem":
+            # 内存池现状：总量 + 每一块是谁（key 前缀能看出是候选图/视频帧/遮罩/角色图）
+            items = pl.mem_list()
+            for it in items:
+                k = it.get("key") or ""
+                it["who"] = ("候选图" if k.startswith("cand_")
+                             else "角色图" if k.startswith("char_")
+                             else "视频帧" if k.startswith("vid_")
+                             else "遮罩" if k.startswith("mask_")
+                             else "内存图")
+            with _lock:
+                cur = _char.get("key")
+            for it in items:
+                it["current"] = bool(cur and it.get("key") == cur)
+            return self._send(200, {"stats": pl.mem_stats(), "items": items})
+
         if path == "/api/env":
             return self._send(200, env_info())
 
@@ -954,7 +980,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not item:
                     return self._send(404, {"error": "候选图不存在或已被回收"})
                 _selected_cid = cid
-                _char.update({"key": item["key"], "png": item["png"], "label": "候选图", "asset": ""})
+                _set_char(item["key"], item["png"], "候选图")
             return self._send(200, {"ok": True})
 
         if u.path == "/api/candidates/drop":
@@ -967,7 +993,7 @@ class Handler(BaseHTTPRequestHandler):
                 if _selected_cid == cid:
                     # 丢掉的就是当前在用的那张，当前角色也一并清空，避免“删了还在用”
                     _selected_cid = None
-                    _char.update({"key": None, "png": None, "label": "", "asset": ""})
+                    _set_char(None, None, "")
             if item:
                 pl.mem_drop(item["key"])
             return self._send(200, {"ok": True})
@@ -987,13 +1013,13 @@ class Handler(BaseHTTPRequestHandler):
                 print("上传暂存内存池失败（生成时会自动重试）：", e)
             with _lock:
                 _selected_cid = None
-                _char.update({"key": key, "png": data, "label": "本地上传", "asset": ""})
+                _set_char(key, data, "本地上传")
             return self._send(200, {"ok": True, "key": key})
 
         if u.path == "/api/char/clear":
             with _lock:
                 _selected_cid = None
-                _char.update({"key": None, "png": None, "label": "", "asset": ""})
+                _set_char(None, None, "")
             return self._send(200, {"ok": True})
 
         if u.path == "/api/assets/use":
@@ -1013,7 +1039,7 @@ class Handler(BaseHTTPRequestHandler):
             with _lock:
                 if _char.get("asset") == name:
                     _selected_cid = None
-                    _char.update({"key": None, "png": None, "label": "", "asset": ""})
+                    _set_char(None, None, "")
             ok, err = _rm_tree(target)
             if not ok:
                 return self._send(500, {"error": f"删除失败：{err}"})
@@ -1067,10 +1093,18 @@ class Handler(BaseHTTPRequestHandler):
 
         if u.path == "/api/cancel":
             _cancel_flag["v"] = True
+            pl.interrupt()           # 立刻打断 ComfyUI 正在跑的工作流，不用等下一个检查点
             with _lock:
                 if _job["status"] == "running":
                     _job["message"] = "正在取消…"
             return self._send(200, {"ok": True})
+
+        if u.path == "/api/mem/clear":
+            # 一键释放内存池；当前角色图保留（还在用），其它的（取消残留的视频帧/遮罩等）全部归还
+            with _lock:
+                cur = _char.get("key")
+            r = pl.mem_clear(keep=[cur] if cur else [])
+            return self._send(200, {"ok": True, **r})
 
         if u.path == "/api/actions":
             body = self._json_body()
@@ -1299,6 +1333,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if u.path == "/api/hang/stop":
             _hang_cancel["v"] = True
+            pl.interrupt()           # 让 ComfyUI 正在跑的这段也尽快停下
             with _lock:
                 if _hang["status"] == "running":
                     _hang["message"] = "正在停止…手上这一步做完就停，没跑完的那条留在队头"
