@@ -194,6 +194,11 @@
   .player-bar .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
   .player-bar .seg button{border:none;background:transparent;padding:5px 10px;font-size:12px;color:#5a6076}
   .player-bar .seg button.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .seg2{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+  .seg2 button{border:none;background:transparent;padding:7px 10px;font-size:13px;color:#5a6076;cursor:pointer;flex:1;font-family:inherit}
+  .seg2 button.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  /* 原画帧不是像素画，缩略图用平滑缩放才不会锯齿 */
+  .rawmode .strip img, .rawmode .pscene img, .rawmode .thumb img{image-rendering:auto}
   .strip{width:100%;overflow:auto;display:flex;gap:8px;padding:4px 2px 8px}
   .strip img{height:58px;border-radius:8px;border:1px solid var(--line);background:#fff repeating-conic-gradient(#eef0f6 0 25%,#fff 0 50%) 0 0/10px 10px;image-rendering:pixelated;cursor:pointer;transition:.15s}
   .strip img:hover,.strip img.on{outline:2px solid var(--primary);outline-offset:1px}
@@ -381,8 +386,12 @@
           <div class="slider"><input type="range" id="durRange" min="1" max="4" step="0.5" value="2" oninput="durVal.textContent=this.value+' 秒'"><div class="val" id="durVal">2 秒</div></div>
         </div>
         <div>
-          <label class="f">像素颗粒（格数）</label>
-          <div class="slider"><input type="range" id="pixRange" min="32" max="128" step="8" value="64" oninput="pixVal.textContent=this.value+' px'"><div class="val" id="pixVal">64 px</div></div>
+          <label class="f">输出方式</label>
+          <div class="seg2" id="outSeg">
+            <button class="on" data-mode="pixel" onclick="setOutMode('pixel')">像素动画</button>
+            <button data-mode="raw" onclick="setOutMode('raw')">原画帧</button>
+          </div>
+          <div class="slider" id="pixWrap" style="margin-top:9px"><input type="range" id="pixRange" min="32" max="128" step="8" value="64" oninput="pixVal.textContent=this.value+' px'"><div class="val" id="pixVal">64 px</div></div>
         </div>
       </div>
 
@@ -564,6 +573,7 @@ let allActions = [...PRESET_ACTIONS];
 let assets = [], currentAsset = null, currentAction = null;
 let currentAssetActions = new Set();
 let frames = [], images = [], playing = true, fps = 12, zoom = 2, frameIdx = 0, timer = null;
+let outMode = "pixel";        // pixel = 逐帧像素化；raw = 直接抽视频原帧（更高清、更快）
 let cands = [], selectedCid = null, charLabel = "", charAsset = "", hasCharPng = false;
 let pendingItems = [];
 const anims = new Map();      // pid -> {imgs, idx, timer}
@@ -793,6 +803,22 @@ async function uploadImage(file){
 }
 
 /* ---------- 生成动作 ---------- */
+function setOutMode(m){
+  outMode = (m === "raw") ? "raw" : "pixel";
+  try{ localStorage.setItem("pixel_out_mode", outMode); }catch(e){}
+  document.querySelectorAll("#outSeg button").forEach(b=>b.classList.toggle("on", b.dataset.mode === outMode));
+  const wrap = document.getElementById("pixWrap");
+  const raw = outMode === "raw";
+  if(wrap){
+    wrap.style.opacity = raw ? ".35" : "1";
+    wrap.style.pointerEvents = raw ? "none" : "auto";
+  }
+  const tip = document.getElementById("goTip");
+  if(tip) tip.textContent = raw
+    ? "原画帧：直接抽视频帧，不做像素化（想要更清楚，可在「高级选项」把视频分辨率调到 1152×640）"
+    : "每个动作约 3~4 分钟";
+}
+
 async function startActions(){
   const name = document.getElementById("nameInput").value.trim();
   if(!name){ toast("请填写资产名称（保存时用）", true); document.getElementById("nameInput").focus(); return; }
@@ -804,6 +830,7 @@ async function startActions(){
     motion: document.getElementById("motionInput").value,
     duration: parseFloat(document.getElementById("durRange").value),
     pixel: parseInt(document.getElementById("pixRange").value),
+    pixelize: outMode === "pixel",
     video_size: document.getElementById("videoSize").value,
     keep_video: document.getElementById("keepVideo").checked,
   };
@@ -908,7 +935,7 @@ async function renderPending(){
     const el = h(`<div class="pend" data-pid="${it.pid}">
       <div class="pscene"><img src="/api/pending/${it.pid}/frames/0.png"></div>
       <div class="pinfo">
-        <div class="prow"><b>${it.action}</b><span>${it.count} 帧 · ${it.pixel}px${it.hasVideo?' · 含mp4':''}</span></div>
+        <div class="prow"><b>${it.action}</b><span>${it.count} 帧 · ${it.raw ? ("原画 " + ((it.size||[]).join("×")||"")) : (it.pixel + "px")}${it.hasVideo?' · 含mp4':''}</span></div>
         <div class="pbtns">
           <button class="btn primary accept">✓ 接受并保存</button>
           <button class="btn ghost drop">丢弃</button>
@@ -918,6 +945,7 @@ async function renderPending(){
     </div>`);
     el.querySelector(".accept").onclick = ()=> acceptPending(it.pid);
     el.querySelector(".drop").onclick = ()=> dropPending(it.pid);
+    el.classList.toggle("rawmode", !!it.raw);
     grid.appendChild(el);
     startAnim(it.pid, el.querySelector("img"), it.count);
   });
@@ -1107,10 +1135,13 @@ async function selectAction(action){
   frames = d.frames || [];
   if(!frames.length){ document.getElementById("viewCard").classList.add("hidden"); return; }
   document.getElementById("viewCard").classList.remove("hidden");
+  document.getElementById("viewCard").classList.toggle("rawmode", !!frames[0].raw);
   document.getElementById("viewHint").textContent = `${currentAsset} · ${action}`;
   document.getElementById("mAct").textContent = action;
   document.getElementById("mFrames").textContent = frames.length + " 帧";
-  document.getElementById("mPixel").textContent = (frames[0].pixel||64) + " px";
+  document.getElementById("mPixel").textContent = frames[0].raw
+    ? ("原画 " + (((frames[0].size||[]).join("×")) || "全尺寸"))
+    : ((frames[0].pixel || 64) + " px");
 
   const strip = document.getElementById("strip");
   strip.innerHTML = "";
@@ -1135,7 +1166,7 @@ function drawFrame(){
   const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
   const im = images[frameIdx];
   if(!im) return;
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = !(frames[frameIdx] && frames[frameIdx].raw);
   cv.width = im.width * zoom;
   cv.height = im.height * zoom;
   ctx.clearRect(0,0,cv.width,cv.height);
@@ -1508,6 +1539,7 @@ async function startHang(){
     motion: document.getElementById("motionInput").value,
     duration: parseFloat(document.getElementById("durRange").value),
     pixel: parseInt(document.getElementById("pixRange").value),
+    pixelize: outMode === "pixel",
     video_size: document.getElementById("videoSize").value,
     steps: parseInt(document.getElementById("stepsSel").value),
     keep_video: document.getElementById("keepVideo").checked,
@@ -1762,6 +1794,8 @@ async function previewDone(name, action){
 
 /* ---------- 初始化 ---------- */
 renderChips();
+try{ outMode = localStorage.getItem("pixel_out_mode") || "pixel"; }catch(e){}
+setOutMode(outMode);
 refreshAll();
 refreshHang();
 refreshDone();

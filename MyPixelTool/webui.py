@@ -147,6 +147,7 @@ def _run_actions(params):
                 _pending[pid] = {
                     "name": name, "action": r["action"], "frames": r["frames"],
                     "pixel": r["pixel"], "duration": r["duration"], "video": r.get("video"),
+                    "raw": bool(r.get("raw")), "size": r.get("size"),
                     "char_png": _char.get("png"), "ts": time.time(),
                 }
                 _pending_order.append(pid)
@@ -431,7 +432,15 @@ def _hang_run_one(it, params, out_dir):
             _hang_log(f"✓ {name} · {act} 已存盘（{len(r['frames'])} 帧）", "完成")
 
         if not acts and mode != "actions":
-            # 没选动作：只要一张像素图。角色图已在上面存好，这里直接抠图 + 像素化
+            # 没选动作：像素化开着就额外做一张像素图；关着就只留角色图
+            pix_on = params.get("pixelize", True)
+            if isinstance(pix_on, str):
+                pix_on = pix_on.strip().lower() not in ("0", "false", "no", "off", "")
+            if not pix_on:
+                with _lock:
+                    _hang["unitsDone"] += 1      # 计划里算过这张像素图，跳过时也记一个单元，进度才准
+                _hang_log(f"· {name} · 已关闭像素化且没选动作，只保留角色图", "跳过")
+                return True, acts
             if _hang_cancel["v"]:
                 raise RuntimeError("已取消")
             with _lock:
@@ -595,14 +604,19 @@ def list_assets(root=None):
             acts.append({"action": pl.PIXEL_IMAGE, "frames": 1})
             seen.add(pl.PIXEL_IMAGE)
         for a, info in man.get("actions", {}).items():
-            fd = os.path.join(d, a, "像素帧")
+            fd = pl.action_frames_dir(name, a, base, man)
             if os.path.isdir(fd):
-                acts.append({"action": a, "frames": len([f for f in os.listdir(fd) if f.endswith(".png")])})
+                acts.append({"action": a,
+                             "frames": len([f for f in os.listdir(fd) if f.endswith(".png")]),
+                             "raw": bool((info or {}).get("raw"))})
                 seen.add(a)
         for a in sorted(os.listdir(d)):
-            fd = os.path.join(d, a, "像素帧")
+            if a == pl.PIXEL_IMAGE:
+                continue
+            fd = pl.action_frames_dir(name, a, base, man)
             if a not in seen and os.path.isdir(fd):
-                acts.append({"action": a, "frames": len([f for f in os.listdir(fd) if f.endswith(".png")])})
+                acts.append({"action": a,
+                             "frames": len([f for f in os.listdir(fd) if f.endswith(".png")])})
         try:
             mtime = os.path.getmtime(d)
         except Exception:
@@ -627,13 +641,17 @@ def frame_list(name, action, root=None):
         man = pl.load_manifest(name, base)
         pixel = (man.get("pixelImage") or {}).get("pixel", 64)
         return [{"url": "/file?p=" + urllib.parse.quote(p), "pixel": pixel}]
-    fd = os.path.join(base, name, action, "像素帧")
+    man = pl.load_manifest(name, base)
+    fd = pl.action_frames_dir(name, action, base, man)
     if not os.path.isdir(fd):
         return []
     files = sorted(f for f in os.listdir(fd) if f.endswith(".png"))
-    man = pl.load_manifest(name, base)
-    pixel = man.get("actions", {}).get(action, {}).get("pixel", 64)
-    return [{"url": "/file?p=" + urllib.parse.quote(os.path.join(fd, f)), "pixel": pixel} for f in files]
+    meta = (man.get("actions") or {}).get(action) or {}
+    raw = bool(meta.get("raw")) or int(meta.get("pixel") or 0) <= 0 and meta.get("dir") == pl.RAW_DIR
+    pixel = 0 if raw else int(meta.get("pixel") or 64)
+    size = meta.get("size") or []
+    return [{"url": "/file?p=" + urllib.parse.quote(os.path.join(fd, f)),
+             "pixel": pixel, "raw": raw, "size": size} for f in files]
 
 
 def _rm_tree(path):
@@ -845,6 +863,7 @@ class Handler(BaseHTTPRequestHandler):
                     if it:
                         items.append({"pid": pid, "name": it["name"], "action": it["action"],
                                       "count": len(it["frames"]), "pixel": it["pixel"],
+                                      "raw": bool(it.get("raw")), "size": it.get("size"),
                                       "duration": it["duration"], "hasVideo": bool(it.get("video"))})
             return self._send(200, {"items": items})
 
@@ -863,13 +882,14 @@ class Handler(BaseHTTPRequestHandler):
                 it = _pending.get(pid)
                 frames = list(it["frames"]) if it else []
                 action = it["action"] if it else "frames"
+                raw = bool(it.get("raw")) if it else False
             if not it:
                 return self._send(404, {"error": "not found"})
             buf = io.BytesIO()
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
                 for i, b in enumerate(frames):
                     z.writestr(f"{action}/{i:04d}.png", b)
-            fn = urllib.parse.quote(f"{action}_像素帧.zip")
+            fn = urllib.parse.quote(f"{action}_{'原画帧' if raw else '像素帧'}.zip")
             return self._send(200, buf.getvalue(), "application/zip",
                               {"Content-Disposition": f"attachment; filename*=UTF-8''{fn}"})
 
@@ -894,15 +914,16 @@ class Handler(BaseHTTPRequestHandler):
                 with open(p, "rb") as f:
                     return self._send(200, f.read(), "image/png",
                                       {"Content-Disposition": f"attachment; filename*=UTF-8''{fn}"})
-            fd = os.path.join(root, pl.safe_name(name), pl.safe_name(action), "像素帧")
+            fd = pl.action_frames_dir(name, action, root)
             if not safe_path(fd) or not os.path.isdir(fd):
                 return self._send(404, {"error": "no frames"})
+            label = os.path.basename(fd)
             buf = io.BytesIO()
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
                 for f in sorted(os.listdir(fd)):
                     if f.endswith(".png"):
                         z.write(os.path.join(fd, f), f"{action}/{f}")
-            fn = urllib.parse.quote(f"{name}_{action}_像素帧.zip")
+            fn = urllib.parse.quote(f"{name}_{action}_{label}.zip")
             return self._send(200, buf.getvalue(), "application/zip",
                               {"Content-Disposition": f"attachment; filename*=UTF-8''{fn}"})
 
@@ -1259,7 +1280,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, {"error": f"输出目录不可写：{err}"})
 
             params = {k: body.get(k) for k in
-                      ("motion", "duration", "pixel", "video_size", "size", "steps", "keep_video")
+                      ("motion", "duration", "pixel", "pixelize", "video_size", "size", "steps", "keep_video")
                       if body.get(k) is not None}
             with _lock:
                 _hang.update({

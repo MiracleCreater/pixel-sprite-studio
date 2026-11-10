@@ -383,6 +383,17 @@ def pixelize_bytes(frame_png, mask_png, pixel_size, colors=32):
     return buf.getvalue()
 
 
+def matte_bytes(frame_png, mask_png):
+    """原始帧 + 遮罩 -> 全分辨率透明 PNG（不像素化，视频多清楚就多清楚）"""
+    from PIL import Image
+    img = Image.open(io.BytesIO(frame_png)).convert("RGBA")
+    mask = Image.open(io.BytesIO(mask_png)).convert("L").resize(img.size, Image.BILINEAR)
+    img.putalpha(mask)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
 def make_preview(png_bytes, box=160):
     """给前端列表用的小尺寸预览（仍是内存字节）"""
     from PIL import Image
@@ -465,6 +476,25 @@ def save_char_image(name, png_bytes, root=None):
 
 
 PIXEL_IMAGE = "像素图"        # 静态像素图的伪动作名（目录里存 像素图.png）
+PIXEL_DIR = "像素帧"          # 像素化后的帧目录
+RAW_DIR = "原画帧"            # 不像素化、直接抽视频帧的目录
+
+
+def frame_dir_name(pixel):
+    return RAW_DIR if int(pixel or 0) <= 0 else PIXEL_DIR
+
+
+def action_frames_dir(name, action, root=None, man=None):
+    """按 manifest 记录判断这个动作的帧在哪个目录（像素帧 / 原画帧）"""
+    base = root or OUT_ROOT
+    man = man if man is not None else load_manifest(name, base)
+    meta = (man.get("actions") or {}).get(action) or {}
+    sub = RAW_DIR if meta.get("raw") else PIXEL_DIR
+    d = os.path.join(base, safe_name(name), safe_name(action), sub)
+    if os.path.isdir(d):
+        return d
+    alt = os.path.join(base, safe_name(name), safe_name(action), PIXEL_DIR)
+    return alt if os.path.isdir(alt) else d
 
 
 def save_pixel_image(name, png_bytes, pixel, root=None):
@@ -516,13 +546,28 @@ def pixelize_image(char_key, pixel, emit=_noop, is_cancelled=None, colors=32):
 
 
 def save_action(name, action, frames, pixel, duration, video_bytes=None, root=None):
-    """用户接受（或挂机模式）时才会调用；root 可指定输出根目录"""
+    """用户接受（或挂机模式）时才会调用；root 可指定输出根目录
+
+    pixel > 0  → 存「像素帧」目录；pixel <= 0 → 存「原画帧」目录（未像素化的视频原帧）
+    """
     base = root or OUT_ROOT
     name = safe_name(name)
     act = safe_name(action)
     act_dir = os.path.join(base, name, act)
-    final_dir = os.path.join(act_dir, "像素帧")
+    sub = frame_dir_name(pixel)
+    final_dir = os.path.join(act_dir, sub)
     os.makedirs(final_dir, exist_ok=True)
+    # 两种模式切换重做时，清掉另一个目录里的旧帧，避免残留混淆
+    for other in (PIXEL_DIR, RAW_DIR):
+        od = os.path.join(act_dir, other)
+        if od != final_dir and os.path.isdir(od):
+            for old in os.listdir(od):
+                if old.endswith(".png"):
+                    os.remove(os.path.join(od, old))
+            try:
+                os.rmdir(od)
+            except OSError:
+                pass
     for old in os.listdir(final_dir):
         if old.endswith(".png"):
             os.remove(os.path.join(final_dir, old))
@@ -532,9 +577,18 @@ def save_action(name, action, frames, pixel, duration, video_bytes=None, root=No
     if video_bytes:
         with open(os.path.join(act_dir, f"{act}.mp4"), "wb") as f:
             f.write(video_bytes)
+    meta = {"frames": len(frames), "pixel": int(pixel or 0), "duration": duration,
+            "created": time.strftime("%Y-%m-%d %H:%M"), "dir": sub}
+    if int(pixel or 0) <= 0:
+        meta["raw"] = True
+        try:
+            from PIL import Image
+            im = Image.open(io.BytesIO(frames[0]))
+            meta["size"] = [im.width, im.height]
+        except Exception:
+            pass
     man = load_manifest(name, root)
-    man.setdefault("actions", {})[action] = {"frames": len(frames), "pixel": pixel, "duration": duration,
-                                             "created": time.strftime("%Y-%m-%d %H:%M")}
+    man.setdefault("actions", {})[action] = meta
     save_manifest(name, man, root)
     return act_dir
 
@@ -631,7 +685,10 @@ def render_actions(params, char_key, actions, emit=_noop, is_cancelled=None):
     ensure_server(emit)
     emit("准备", "环境就绪", 1)
 
-    pixel = int(params.get("pixel", 64))
+    pixelize = params.get("pixelize", True)
+    if isinstance(pixelize, str):
+        pixelize = pixelize.strip().lower() not in ("0", "false", "no", "off", "")
+    pixel = int(params.get("pixel", 64)) if pixelize else 0
     duration = float(params.get("duration", 2.0))
     vw, vh = _parse_size(params.get("video_size"), "864x480")
     vw, vh = _snap32(vw), _snap32(vh)          # 必须是 32 的倍数
@@ -691,14 +748,18 @@ def render_actions(params, char_key, actions, emit=_noop, is_cancelled=None):
             raise RuntimeError("去背景没有返回遮罩")
 
         frames = []
+        stage = "像素化" if pixelize else "抽帧"
         for i in range(m):
             if is_cancelled and is_cancelled():
                 raise RuntimeError("已取消")
             fbytes = mem_get(vid_key, i)
             mask_bytes = mem_get(mask_key, i)
-            frames.append(pixelize_bytes(fbytes, mask_bytes, pixel))
+            if pixelize:
+                frames.append(pixelize_bytes(fbytes, mask_bytes, pixel))
+            else:
+                frames.append(matte_bytes(fbytes, mask_bytes))
             if i % 6 == 0:
-                emit("像素化", f"【{action}】处理帧 {i+1}/{m}",
+                emit(stage, f"【{action}】处理帧 {i+1}/{m}",
                      base + int(span * (0.92 + 0.07 * i / max(1, m))))
 
         video_bytes = None
@@ -721,6 +782,8 @@ def render_actions(params, char_key, actions, emit=_noop, is_cancelled=None):
             "duration": duration,
             "video": video_bytes,
             "preview": preview,
+            "raw": not pixelize,
+            "size": [vw, vh],
         })
         emit("完成", f"【{action}】完成，共 {m} 帧（待你确认后才会存盘）", base + span)
 
@@ -776,13 +839,18 @@ def main():
     ap.add_argument("--duration", type=float, default=2.0)
     ap.add_argument("--steps", type=int, default=8)
     ap.add_argument("--pixel", type=int, default=64)
+    ap.add_argument("--no-pixelize", action="store_true",
+                    help="不像素化：直接抽视频原帧，输出全分辨率透明 PNG（更快、更清晰）")
     ap.add_argument("--keep-video", action="store_true")
     args = ap.parse_args()
 
     def cli_emit(stage, msg, percent=0):
         print(f"[{percent:3d}%] {stage}: {msg}", flush=True)
 
-    run_pipeline(vars(args), cli_emit)
+    params = vars(args)
+    if params.pop("no_pixelize", False):
+        params["pixelize"] = False
+    run_pipeline(params, cli_emit)
     print("\n完成！输出目录:", os.path.join(OUT_ROOT, safe_name(args.name)))
 
 
