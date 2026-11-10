@@ -620,13 +620,28 @@ def list_assets(root=None):
                              "frames": len([f for f in os.listdir(fd) if f.endswith(".png")]),
                              "raw": bool((info or {}).get("raw"))})
                 seen.add(a)
+        # 磁盘扫描兜底：动作文件夹被手动改名后 manifest 对不上，以磁盘为准；
+        # manifest 里恰好有同名记录就用它的元信息，没有就从目录内容推断
         for a in sorted(os.listdir(d)):
-            if a == pl.PIXEL_IMAGE:
+            ad = os.path.join(d, a)
+            if not os.path.isdir(ad) or a in seen:
                 continue
-            fd = pl.action_frames_dir(name, a, base, man)
-            if a not in seen and os.path.isdir(fd):
-                acts.append({"action": a,
-                             "frames": len([f for f in os.listdir(fd) if f.endswith(".png")])})
+            px = os.path.join(ad, pl.PIXEL_DIR)
+            rawd = os.path.join(ad, pl.RAW_DIR)
+            n_px = len([f for f in os.listdir(px) if f.endswith(".png")]) if os.path.isdir(px) else 0
+            n_raw = len([f for f in os.listdir(rawd) if f.endswith(".png")]) if os.path.isdir(rawd) else 0
+            n = n_px or n_raw
+            if not n:
+                continue
+            info = (man.get("actions") or {}).get(a)
+            size = []
+            if info:
+                raw = bool(info.get("raw"))
+            else:
+                inf = pl.infer_action_meta(ad) or {}
+                raw = bool(n_raw and not n_px) or bool(inf.get("raw"))
+                size = inf.get("size") or []
+            acts.append({"action": a, "frames": n, "raw": raw, "size": size})
         try:
             mtime = os.path.getmtime(d)
         except Exception:
@@ -656,10 +671,17 @@ def frame_list(name, action, root=None):
     if not os.path.isdir(fd):
         return []
     files = sorted(f for f in os.listdir(fd) if f.endswith(".png"))
-    meta = (man.get("actions") or {}).get(action) or {}
-    raw = bool(meta.get("raw")) or int(meta.get("pixel") or 0) <= 0 and meta.get("dir") == pl.RAW_DIR
-    pixel = 0 if raw else int(meta.get("pixel") or 64)
-    size = meta.get("size") or []
+    meta = (man.get("actions") or {}).get(action)
+    if meta:
+        raw = bool(meta.get("raw")) or int(meta.get("pixel") or 0) <= 0 and meta.get("dir") == pl.RAW_DIR
+        pixel = 0 if raw else int(meta.get("pixel") or 64)
+        size = meta.get("size") or []
+    else:
+        # manifest 没记录（动作文件夹被手动改名过）：从磁盘目录推断
+        inf = pl.infer_action_meta(os.path.dirname(fd)) or {}
+        raw = bool(inf.get("raw"))
+        pixel = 0 if raw else int(inf.get("pixel") or 64)
+        size = inf.get("size") or []
     return [{"url": "/file?p=" + urllib.parse.quote(os.path.join(fd, f)),
              "pixel": pixel, "raw": raw, "size": size} for f in files]
 

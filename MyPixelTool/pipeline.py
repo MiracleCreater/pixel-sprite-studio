@@ -509,16 +509,54 @@ def frame_dir_name(pixel):
 
 
 def action_frames_dir(name, action, root=None, man=None):
-    """按 manifest 记录判断这个动作的帧在哪个目录（像素帧 / 原画帧）"""
+    """定位动作的帧目录。
+
+    manifest 有记录按记录来（记录的目录不存在时尝试另一个）；
+    manifest 没有这个名字（比如动作文件夹被手动改名过）就以磁盘为准，
+    看哪个子目录真实存在。
+    """
     base = root or OUT_ROOT
+    act_dir = os.path.join(base, safe_name(name), safe_name(action))
     man = man if man is not None else load_manifest(name, base)
     meta = (man.get("actions") or {}).get(action) or {}
-    sub = RAW_DIR if meta.get("raw") else PIXEL_DIR
-    d = os.path.join(base, safe_name(name), safe_name(action), sub)
-    if os.path.isdir(d):
-        return d
-    alt = os.path.join(base, safe_name(name), safe_name(action), PIXEL_DIR)
-    return alt if os.path.isdir(alt) else d
+    if meta:
+        sub = RAW_DIR if meta.get("raw") else PIXEL_DIR
+        d = os.path.join(act_dir, sub)
+        if os.path.isdir(d):
+            return d
+        alt = os.path.join(act_dir, RAW_DIR if meta.get("raw") else PIXEL_DIR)
+        return alt if os.path.isdir(alt) else d
+    for sub in (PIXEL_DIR, RAW_DIR):
+        d = os.path.join(act_dir, sub)
+        if os.path.isdir(d):
+            return d
+    return os.path.join(act_dir, PIXEL_DIR)
+
+
+def infer_action_meta(act_dir):
+    """manifest 里没有记录的动作（文件夹被手动改名过）从磁盘推断元信息。
+
+    返回 {raw, pixel, frames, size}；不是合法的动作目录返回 None。
+    """
+    px = os.path.join(act_dir, PIXEL_DIR)
+    raw = os.path.join(act_dir, RAW_DIR)
+    if os.path.isdir(px):
+        d, is_raw = px, False
+    elif os.path.isdir(raw):
+        d, is_raw = raw, True
+    else:
+        return None
+    files = [f for f in os.listdir(d) if f.endswith(".png")]
+    meta = {"raw": is_raw, "pixel": 0 if is_raw else 64,
+            "frames": len(files), "size": []}
+    if files:
+        try:
+            from PIL import Image
+            with Image.open(os.path.join(d, files[0])) as im:
+                meta["size"] = list(im.size)
+        except Exception:
+            pass
+    return meta
 
 
 def save_pixel_image(name, png_bytes, pixel, root=None):
