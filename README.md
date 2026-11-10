@@ -3,7 +3,7 @@
 给一句角色描述，本地产出**透明背景的像素动画帧序列**，可直接导入 Aseprite / Unity / Godot。
 全程本地推理，不需要任何在线服务、不需要激活码。
 
-![demo](docs/demo-attack.gif)
+![demo](docs/demo-fairy.gif)
 
 ```
 文生图（Qwen-Image 2.1 Turbo）
@@ -14,6 +14,20 @@
       ↓
 你确认后才写硬盘
 ```
+
+## 效果演示
+
+输入一句「月白长裙的仙子」，先出角色图，再一键生成各动作的透明像素动画：
+
+<p align="center"><img src="docs/fairy-character.png" width="300" alt="仙子角色图"></p>
+
+| 行走 | 双手抱胸 | 打坐 |
+| --- | --- | --- |
+| ![行走](docs/fairy-walk.gif) | ![双手抱胸](docs/fairy-idle.gif) | ![打坐](docs/fairy-sit.gif) |
+
+| 往左飞冲 | 腾空飞行 |
+| --- | --- |
+| ![往左飞冲](docs/fairy-dash.gif) | ![腾空飞行](docs/fairy-fly.gif) |
 
 ![界面](docs/ui-overview.png)
 
